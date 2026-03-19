@@ -23,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   VideoMetadata? _metadata;
-  DownloadType _selectedType = DownloadType.videoWithAudio;
+  DownloadType _selectedType = DownloadType.videoOnly;
   DownloadOption? _selectedOption;
   GitHubRelease? _newUpdate;
 
@@ -58,12 +58,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isAnalyzing = false;
       _metadata = meta;
-      final preferredOptions =
-          meta?.optionsFor(DownloadType.videoWithAudio) ?? const [];
       _selectedOption = preferredOptions.isNotEmpty
           ? preferredOptions.first
           : _firstAvailableOption(meta);
-      _selectedType = _selectedOption?.type ?? DownloadType.videoWithAudio;
+      _selectedType = _selectedOption?.type ?? DownloadType.videoOnly;
     });
 
     if (meta == null) {
@@ -157,12 +155,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _downloadTypeLabel(DownloadType type) {
     switch (type) {
-      case DownloadType.videoWithAudio:
-        return 'Video + Audio';
       case DownloadType.videoOnly:
-        return 'Video Only';
+        return 'Video';
       case DownloadType.audioOnly:
-        return 'Audio Only';
+        return 'Audio';
     }
   }
 
@@ -505,8 +501,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   IconData _typeIcon(DownloadType type) {
     switch (type) {
-      case DownloadType.videoWithAudio:
-        return LucideIcons.video;
       case DownloadType.videoOnly:
         return LucideIcons.clapperboard;
       case DownloadType.audioOnly:

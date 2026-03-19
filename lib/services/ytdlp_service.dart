@@ -9,7 +9,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../globals.dart';
 
-enum DownloadType { videoWithAudio, videoOnly, audioOnly }
+enum DownloadType { videoOnly, audioOnly }
 
 class DownloadOption {
   final String id;
@@ -129,10 +129,6 @@ class YtdlpService {
     final video = await _yt.videos.get(id);
     final manifest = await _yt.videos.streamsClient.getManifest(id);
 
-    final muxed = manifest.muxed.toList()
-      ..sort(
-        (a, b) => b.videoResolution.height.compareTo(a.videoResolution.height),
-      );
     final videoOnly = manifest.videoOnly.toList()
       ..sort(
         (a, b) => b.videoResolution.height.compareTo(a.videoResolution.height),
@@ -150,24 +146,6 @@ class YtdlpService {
       duration: video.duration ?? Duration.zero,
       thumbnailUrl: video.thumbnails.highResUrl,
       optionsByType: {
-        DownloadType.videoWithAudio: _uniqueOptions(
-          muxed.map(
-            (stream) => DownloadOption(
-              id: stream.tag.toString(),
-              type: DownloadType.videoWithAudio,
-              label:
-                  '${stream.qualityLabel} (${stream.container.name.toUpperCase()})',
-              details: _describeVideoStream(
-                height: stream.videoResolution.height,
-                fps: stream.framerate.framesPerSecond.round(),
-                size: stream.size.totalBytes,
-              ),
-              container: stream.container.name,
-              height: stream.videoResolution.height,
-              fileSizeBytes: stream.size.totalBytes,
-            ),
-          ),
-        ),
         DownloadType.videoOnly: _uniqueOptions(
           videoOnly.map(
             (stream) => DownloadOption(
@@ -230,7 +208,6 @@ class YtdlpService {
         .toList();
 
     final optionsByType = <DownloadType, List<DownloadOption>>{
-      DownloadType.videoWithAudio: [],
       DownloadType.videoOnly: [],
       DownloadType.audioOnly: [],
     };
@@ -240,9 +217,7 @@ class YtdlpService {
       final hasAudio = (format['acodec'] as String? ?? 'none') != 'none';
       if (!hasVideo && !hasAudio) continue;
 
-      final type = hasVideo && hasAudio
-          ? DownloadType.videoWithAudio
-          : hasVideo
+      final type = hasVideo
           ? DownloadType.videoOnly
           : DownloadType.audioOnly;
 
@@ -308,11 +283,7 @@ class YtdlpService {
     final manifest = await _yt.videos.streamsClient.getManifest(metadata.id);
     final file = await _resolveTargetFile(metadata, option);
 
-    final streamUrl = option.type == DownloadType.videoWithAudio
-        ? manifest.muxed
-              .firstWhere((stream) => stream.tag.toString() == option.id)
-              .url
-        : option.type == DownloadType.videoOnly
+    final streamUrl = option.type == DownloadType.videoOnly
         ? manifest.videoOnly
               .firstWhere((stream) => stream.tag.toString() == option.id)
               .url
