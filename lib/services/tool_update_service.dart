@@ -226,7 +226,7 @@ class ToolUpdateService {
     final finalBinDir = Directory(
       '${installRoot.path}${Platform.pathSeparator}bin',
     );
-    await _copyDirectory(binDir, finalBinDir);
+    await _copyDirectory(Directory(binDir), finalBinDir);
 
     final ffmpegExe = File(
       '${finalBinDir.path}${Platform.pathSeparator}ffmpeg.exe',
@@ -286,7 +286,7 @@ class ToolUpdateService {
           entity.path.toLowerCase().endsWith(
             '${Platform.pathSeparator}ffmpeg.exe',
           )) {
-        return Directory(File(entity.path).parent.path);
+        return File(entity.path).parent.path;
       }
     }
     return null;

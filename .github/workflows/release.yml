@@ -21,8 +21,10 @@ jobs:
         run: |
           # Read version from pubspec.yaml and strip build number (the part after +)
           VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          TAG="v$VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "Building version: $TAG"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -50,8 +52,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "build/app/outputs/flutter-apk/app-release.apk"
-          tag: ${{ steps.get_version.outputs.VERSION }}
-          name: "Release v${{ steps.get_version.outputs.VERSION }}"
-          body: "Automated build of YVD version ${{ steps.get_version.outputs.VERSION }}"
+          tag: ${{ steps.get_version.outputs.TAG }}
+          name: "Release ${{ steps.get_version.outputs.TAG }}"
+          body: "Automated build of YVD version ${{ steps.get_version.outputs.TAG }}"
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -20,7 +20,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final ToolUpdateService _toolUpdateService = ToolUpdateService();
-  String _version = "1.0.8";
+  String _version = "1.0.9";
 
   @override
   void initState() {
