@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'assets/images/logo.png',
                             height: 48,
                             width: 48,
-                          ).animate().scale(duration: 600.ms, curve: Curves.outBack),
+                          ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
                           const SizedBox(width: 12),
                           Text(
                             'YVD',
