@@ -1,4 +1,4 @@
-package com.example.yvd
+package com.hexaghost.yvd
 
 import io.flutter.embedding.android.FlutterActivity
 

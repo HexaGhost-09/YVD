@@ -70,7 +70,16 @@ class YtdlpService {
     try {
       // 1. Get stream info
       final manifest = await _yt.videos.streamsClient.getManifest(videoId);
-      final streamInfo = manifest.muxed.withHighestBitrate();
+      
+      // Filter for the requested quality
+      final qualityLabel = quality == VideoQuality.p1080 ? '1080p' 
+                         : quality == VideoQuality.p720 ? '720p' 
+                         : quality == VideoQuality.p360 ? '360p' : '';
+      
+      var streamInfo = manifest.muxed.where((s) => s.videoQuality.toString().contains(qualityLabel)).firstOrNull;
+      
+      // Fallback to highest if preferred not found
+      streamInfo ??= manifest.muxed.withHighestBitrate();
       
       if (streamInfo == null) throw 'No downloadable stream found';
 

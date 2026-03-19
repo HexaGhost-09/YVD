@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   VideoMetadata? _metadata;
+  VideoQuality _selectedQuality = VideoQuality.p720;
 
   @override
   void dispose() {
@@ -68,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _ytdlpService.downloadVideo(
         _metadata!.id,
+        quality: _selectedQuality,
         onProgress: (p) => setState(() => _downloadProgress = p),
       );
       
@@ -89,22 +91,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // 3D Smooth White Gradient Background
+          // Theme-aware Smooth Gradient Background
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: Alignment(-0.5, -0.6),
+                center: const Alignment(-0.5, -0.6),
                 radius: 1.5,
-                colors: [
-                  Colors.white,
-                  Color(0xFFF8F9FA),
-                  Color(0xFFE9ECEF),
-                ],
-                stops: [0.0, 0.4, 1.0],
+                colors: isDark 
+                  ? [const Color(0xFF1E1E1E), const Color(0xFF121212), const Color(0xFF0F0F0F)]
+                  : [Colors.white, const Color(0xFFF8F9FA), const Color(0xFFE9ECEF)],
+                stops: const [0.0, 0.4, 1.0],
               ),
             ),
           ),
@@ -135,12 +137,24 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -1.0,
-                              color: const Color(0xFF1A1A1A),
+                              color: isDark ? Colors.white : const Color(0xFF1A1A1A),
                             ),
                           ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
                         ],
                       ),
-                      _buildHeaderButton(LucideIcons.history),
+                      Row(
+                        children: [
+                          _buildHeaderButton(
+                            isDark ? LucideIcons.sun : LucideIcons.moon, 
+                            isDark,
+                            onPressed: () {
+                              YVDApp.themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _buildHeaderButton(LucideIcons.history, isDark, onPressed: () {}),
+                        ],
+                      ),
                     ],
                   ),
                   
@@ -149,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Your personal video companion.',
                     style: TextStyle(
                       fontSize: 16,
-                      color: const Color(0xFF1A1A1A).withOpacity(0.5),
+                      color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.5),
                       fontWeight: FontWeight.w400,
                     ),
                   ).animate().fadeIn(delay: 200.ms, duration: 600.ms).slideY(begin: 0.2),
@@ -159,19 +173,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   // URL Input Card
                   GlassContainer(
                     blur: 20,
-                    opacity: 0.4,
+                    opacity: isDark ? 0.2 : 0.4,
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.white),
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
                           TextField(
                             controller: _urlController,
-                            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 16),
+                            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1A1A1A), fontSize: 16),
                             decoration: InputDecoration(
                               hintText: 'Paste video link here...',
-                              hintStyle: TextStyle(color: const Color(0xFF1A1A1A).withOpacity(0.3)),
+                              hintStyle: TextStyle(color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.3)),
                               border: InputBorder.none,
                               icon: const Icon(LucideIcons.link, color: Color(0xFFFF0000)),
                             ),
@@ -199,19 +213,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Fast Options',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A),
+                          color: isDark ? Colors.white : const Color(0xFF1A1A1A),
                         ),
                       ),
                       Text(
                         'All Settings',
                         style: TextStyle(
                           fontSize: 14,
-                          color: const Color(0xFF1A1A1A).withOpacity(0.3),
+                          color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.3),
                         ),
                       ),
                     ],
@@ -228,9 +242,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   GlassContainer(
                     width: double.infinity,
                     blur: 10,
-                    opacity: 0.4,
+                    opacity: isDark ? 0.2 : 0.4,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.white),
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Row(
@@ -242,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               'Support for 1000+ platforms including YouTube, Instagram, and TikTok.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: const Color(0xFF1A1A1A).withOpacity(0.7),
+                                color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.7),
                               ),
                             ),
                           ),
@@ -316,11 +330,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPreviewCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GlassContainer(
       blur: 20,
-      opacity: 0.5,
+      opacity: isDark ? 0.3 : 0.5,
       borderRadius: BorderRadius.circular(32),
-      border: Border.all(color: Colors.white),
+      border: Border.all(color: isDark ? Colors.white10 : Colors.white),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -342,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     height: 200,
                     decoration: BoxDecoration(
-                      color: Colors.black45,
+                      color: Colors.black54,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Center(
@@ -380,15 +396,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1A1A1A),
+                      color: isDark ? Colors.white : const Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'by ${_metadata!.author}',
-                    style: TextStyle(
-                      color: const Color(0xFF1A1A1A).withOpacity(0.5),
-                    ),
+                  const SizedBox(height: 12),
+                  const Text('Select Quality', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _metadata!.qualities.map((q) {
+                      final isSelected = _selectedQuality == q;
+                      return ChoiceChip(
+                        label: Text(q.toString().split('.').last.replaceAll('p', '') + 'p'),
+                        selected: isSelected,
+                        onSelected: (val) => setState(() => _selectedQuality = q),
+                        selectedColor: const Color(0xFFFF0000),
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                          fontSize: 11,
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 24),
                   PrimaryButton(
@@ -405,15 +433,18 @@ class _HomeScreenState extends State<HomeScreen> {
     ).animate().fadeIn().slideY(begin: 0.1);
   }
 
-  Widget _buildHeaderButton(IconData icon) {
-    return GlassContainer(
-      blur: 10,
-      opacity: 0.4,
-      shape: BoxShape.circle,
-      border: Border.all(color: Colors.white),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Icon(icon, color: const Color(0xFF1A1A1A).withOpacity(0.8), size: 20),
+  Widget _buildHeaderButton(IconData icon, bool isDark, {VoidCallback? onPressed}) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: GlassContainer(
+        blur: 10,
+        opacity: isDark ? 0.3 : 0.4,
+        shape: BoxShape.circle,
+        border: Border.all(color: isDark ? Colors.white10 : Colors.white),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(icon, color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.8), size: 20),
+        ),
       ),
     );
   }
