@@ -66,7 +66,20 @@ class DownloadResult {
 
 class YtdlpService {
   final _yt = YoutubeExplode();
-  final _dio = Dio();
+  final _dio = Dio(BaseOptions(
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Connection': 'keep-alive',
+      'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+    },
+    followRedirects: true,
+    maxRedirects: 10,
+    validateStatus: (status) => status != null && status < 500,
+  ));
 
   bool get _canUseDesktopYtDlp {
     if (kIsWeb) return false;
@@ -238,9 +251,21 @@ class YtdlpService {
       stream = manifest.audioOnly.firstWhere((s) => s.tag.toString() == option.id);
     }
 
-    await _dio.download(stream.url.toString(), file.path, onReceiveProgress: (r, t) {
-      if (t > 0) onProgress?.call(r / t);
-    });
+    final streamContent = _yt.videos.streamsClient.get(stream);
+    final output = file.openWrite();
+    int downloaded = 0;
+    final total = stream.size.totalBytes;
+
+    try {
+      await for (final chunk in streamContent) {
+        downloaded += chunk.length;
+        output.add(chunk);
+        onProgress?.call(downloaded / total);
+      }
+    } finally {
+      await output.flush();
+      await output.close();
+    }
 
     return _finalizeDownload(option: option, file: file);
   }
