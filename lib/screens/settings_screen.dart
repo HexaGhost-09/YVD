@@ -2,20 +2,90 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../globals.dart';
+import '../services/update_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _version = "1.0.6";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  void _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() => _version = info.version);
+  }
+
+  void _showAlbumDialog(BuildContext context) {
+    final controller = TextEditingController(text: albumNotifier.value);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Download Album Name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'e.g., YVD, MyVideos, etc.'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              albumNotifier.value = controller.text.trim();
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _manualUpdateCheck() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checking for updates...')));
+    final update = await UpdateService().checkForUpdate();
+    if (update != null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('New Update ${update.tagName} Available!'),
+          content: Text(update.body),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Later')),
+            TextButton(
+              onPressed: () {
+                launchUrl(Uri.parse(update.htmlUrl), mode: LaunchMode.externalApplication);
+                Navigator.pop(context);
+              },
+              child: const Text('Download'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are on the latest version.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Parent provides background or isDark theme scaffold
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Theme-aware Smooth Gradient Background
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -45,36 +115,35 @@ class SettingsScreen extends StatelessWidget {
 
                 _buildGroupLabel(context, 'Appearance'),
                 const SizedBox(height: 16),
-                _buildSettingItem(
-                  context,
-                  title: 'Dark Mode',
-                  subtitle: 'Use dark theme across the app',
-                  icon: isDark ? LucideIcons.moon : LucideIcons.sun,
-                  trailing: Switch(
-                    value: isDark,
-                    onChanged: (val) {
-                      themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
-                    },
-                    activeColor: const Color(0xFFFF0000),
+                ValueListenableBuilder(
+                  valueListenable: themeNotifier,
+                  builder: (context, theme, _) => _buildSettingItem(
+                    context,
+                    title: 'Dark Mode',
+                    subtitle: 'Use dark theme across the app',
+                    icon: theme == ThemeMode.dark ? LucideIcons.moon : LucideIcons.sun,
+                    trailing: Switch(
+                      value: theme == ThemeMode.dark,
+                      onChanged: (val) {
+                        themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                      },
+                      activeColor: const Color(0xFFFF0000),
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 32),
                 _buildGroupLabel(context, 'Downloads'),
                 const SizedBox(height: 16),
-                _buildSettingItem(
-                  context,
-                  title: 'Storage Path',
-                  subtitle: '/Gallery/Videos',
-                  icon: LucideIcons.folderDown,
-                ),
-                const SizedBox(height: 12),
-                _buildSettingItem(
-                  context,
-                  title: 'Clear History',
-                  subtitle: 'Remove all past download links',
-                  icon: LucideIcons.trash2,
-                  isDestructive: true,
+                ValueListenableBuilder(
+                  valueListenable: albumNotifier,
+                  builder: (context, album, _) => _buildSettingItem(
+                    context,
+                    onTap: () => _showAlbumDialog(context),
+                    title: 'Storage Path',
+                    subtitle: '/Gallery/$album',
+                    icon: LucideIcons.folderDown,
+                  ),
                 ),
 
                 const SizedBox(height: 32),
@@ -83,15 +152,16 @@ class SettingsScreen extends StatelessWidget {
                 _buildSettingItem(
                   context,
                   title: 'About YVD',
-                  subtitle: 'Version 1.0.5 Premium',
+                  subtitle: 'Version $_version Premium',
                   icon: LucideIcons.info,
                 ),
                 const SizedBox(height: 12),
                 _buildSettingItem(
                   context,
-                  title: 'Help & Support',
-                  subtitle: 'Contact the developer',
-                  icon: LucideIcons.helpCircle,
+                  onTap: _manualUpdateCheck,
+                  title: 'Check for Updates',
+                  subtitle: 'Get the latest features and fixes',
+                  icon: LucideIcons.refreshCw,
                 ),
                 
                 const SizedBox(height: 60),
@@ -131,33 +201,37 @@ class SettingsScreen extends StatelessWidget {
     required String subtitle,
     required IconData icon,
     Widget? trailing,
+    VoidCallback? onTap,
     bool isDestructive = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GlassContainer(
-      blur: 15,
-      opacity: isDark ? 0.15 : 0.4,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: isDark ? Colors.white10 : Colors.white),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Icon(icon, color: isDestructive ? Colors.red : const Color(0xFFFF0000), size: 24),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1A1A1A),
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassContainer(
+        blur: 15,
+        opacity: isDark ? 0.15 : 0.4,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.white),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          leading: Icon(icon, color: isDestructive ? Colors.red : const Color(0xFFFF0000), size: 24),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1A1A1A),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.5),
-            fontSize: 13,
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.5),
+              fontSize: 13,
+            ),
           ),
+          trailing: trailing ?? Icon(LucideIcons.chevronRight, size: 18, color: (isDark ? Colors.white : Colors.black).withOpacity(0.2)),
         ),
-        trailing: trailing ?? Icon(LucideIcons.chevronRight, size: 18, color: (isDark ? Colors.white : Colors.black).withOpacity(0.2)),
       ),
     );
   }

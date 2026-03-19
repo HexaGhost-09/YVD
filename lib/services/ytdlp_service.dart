@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:gal/gal.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../globals.dart';
 
 class VideoMetadata {
   final String id;
@@ -104,7 +105,7 @@ class YtdlpService {
         await Gal.requestAccess();
       }
       
-      await Gal.putVideo(path);
+      await Gal.putVideo(path, album: albumNotifier.value);
       
       // Cleanup
       final file = File(path);

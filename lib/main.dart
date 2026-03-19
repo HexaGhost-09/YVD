@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/navigation_screen.dart';
 import 'globals.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PrefService.init();
   runApp(const YVDApp());
 }
 

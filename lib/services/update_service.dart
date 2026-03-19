@@ -29,7 +29,11 @@ class UpdateService {
         final currentInfo = await PackageInfo.fromPlatform();
         
         final currentVersion = currentInfo.version;
-        final latestVersion = latest.tagName.replaceAll('v', '');
+        // Strip 'v' and any other prefixes
+        final latestTag = latest.tagName.toLowerCase();
+        final latestVersion = latestTag.startsWith('v') ? latestTag.substring(1) : latestTag;
+        
+        print('Checking update: Current Version $currentVersion, Latest available: $latestVersion');
         
         if (_isNewer(latestVersion, currentVersion)) {
           return latest;
@@ -43,14 +47,19 @@ class UpdateService {
 
   bool _isNewer(String latest, String current) {
     try {
-      final latestParts = latest.split('.').map(int.parse).toList();
-      final currentParts = current.split('.').map(int.parse).toList();
+      final latestParts = latest.split('.').map((e) => int.parse(e.replaceAll(RegExp(r'\D'), ''))).toList();
+      final currentParts = current.split('.').map((e) => int.parse(e.replaceAll(RegExp(r'\D'), ''))).toList();
       
-      for (var i = 0; i < latestParts.length && i < currentParts.length; i++) {
-        if (latestParts[i] > currentParts[i]) return true;
-        if (latestParts[i] < currentParts[i]) return false;
+      int length = latestParts.length > currentParts.length ? latestParts.length : currentParts.length;
+      
+      for (var i = 0; i < length; i++) {
+        int latestVal = i < latestParts.length ? latestParts[i] : 0;
+        int currentVal = i < currentParts.length ? currentParts[i] : 0;
+        
+        if (latestVal > currentVal) return true;
+        if (latestVal < currentVal) return false;
       }
-      return latestParts.length > currentParts.length;
+      return false;
     } catch (_) {
       return false;
     }
