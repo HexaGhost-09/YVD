@@ -281,11 +281,6 @@ class YtdlpService {
     
     final args = ['--no-playlist', '-f', formats, '-o', file.path];
 
-    final ariaPath = aria2cPathNotifier.value.trim();
-    if (ariaPath.isNotEmpty && File(ariaPath).existsSync()) {
-      args.addAll(['--external-downloader', 'aria2c', '--external-downloader-args', 'aria2c:"-x 16 -s 16 -k 1M"']);
-    }
-
     final ffmpegPath = ffmpegPathNotifier.value.trim();
     if (ffmpegPath.isNotEmpty && File(ffmpegPath).existsSync()) {
       args.addAll(['--ffmpeg-location', ffmpegPath]);

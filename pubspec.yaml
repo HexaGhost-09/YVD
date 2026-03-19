@@ -2,7 +2,7 @@ name: yvd
 description: "YVD - Premium Video Downloader and Manager."
 publish_to: 'none'
 
-version: 1.2.8+28
+version: 1.2.9+29
 
 environment:
   sdk: ^3.10.7

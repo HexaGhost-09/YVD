@@ -142,8 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _sectionHeader(context, 'Core Binaries', LucideIcons.terminal),
             const SizedBox(height: 16),
             _binaryTile(context, ManagedBinary.ytDlp, LucideIcons.zap),
-            const SizedBox(height: 12),
-            _binaryTile(context, ManagedBinary.aria2c, LucideIcons.download),
 
             const SizedBox(height: 32),
             _sectionHeader(context, 'About & Credits', LucideIcons.info),

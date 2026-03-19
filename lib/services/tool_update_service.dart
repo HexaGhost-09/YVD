@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../globals.dart';
 
-enum ManagedBinary { ytDlp, aria2c }
+enum ManagedBinary { ytDlp }
 
 class BinaryUpdateInfo {
   final ManagedBinary binary;
@@ -55,8 +55,6 @@ class ToolUpdateService {
   // For Android, we use the architecture-specific binary if possible or the zipapp
   static const _ytDlpLatestAndroid = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64';
   
-  static const _aria2cLatestRelease = 'https://api.github.com/repos/aria2/aria2/releases/latest';
-
   bool get _isSupportedPlatform => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS || Platform.isAndroid);
 
   Future<BinaryUpdateInfo> checkUpdate(ManagedBinary binary) async {
@@ -77,8 +75,6 @@ class ToolUpdateService {
     switch (binary) {
       case ManagedBinary.ytDlp:
         return _checkYtDlp();
-      case ManagedBinary.aria2c:
-        return _checkAria2c();
     }
   }
 
@@ -97,8 +93,6 @@ class ToolUpdateService {
           return _installYtDlpFromAssets();
         }
         return _installYtDlp(onProgress: onProgress);
-      case ManagedBinary.aria2c:
-        return _installAria2cFromAssets();
     }
   }
 
@@ -127,28 +121,6 @@ class ToolUpdateService {
       );
     } catch (e) {
       return _errorInfo(ManagedBinary.ytDlp, e.toString());
-    }
-  }
-
-  Future<BinaryUpdateInfo> _checkAria2c() async {
-    try {
-      final currentPath = aria2cPathNotifier.value.trim();
-      final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
-      final currentVersion = aria2cVersionNotifier.value.trim();
-
-      return BinaryUpdateInfo(
-        binary: ManagedBinary.aria2c,
-        isSupported: true,
-        isInstalled: installed,
-        updateAvailable: false, // We update bundled tools via app updates or manual trigger
-        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Needs extraction',
-        latestVersion: 'Bundled',
-        installedPath: currentPath,
-        releaseUrl: '',
-        releaseNotes: 'aria2c is bundled with the app.',
-      );
-    } catch (e) {
-      return _errorInfo(ManagedBinary.aria2c, e.toString());
     }
   }
 
@@ -183,23 +155,7 @@ class ToolUpdateService {
     return BinaryInstallResult(path: targetPath, version: version);
   }
 
-  Future<BinaryInstallResult> _installAria2cFromAssets() async {
-    final version = '1.37.0'; // Hardcoded for bundled version
-    final assetPath = Platform.isWindows ? 'assets/binaries/aria2c.exe' : 'assets/binaries/aria2c_android';
-    final exeName = Platform.isWindows ? 'aria2c.exe' : 'aria2c';
-    
-    final targetPath = await _resolveBinaryInstallPath('aria2c', exeName);
-    
-    // Copy from assets to local filesystem
-    final byteData = await rootBundle.load(assetPath);
-    final file = File(targetPath);
-    await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-    await _makeExecutableIfNeeded(targetPath);
 
-    aria2cPathNotifier.value = targetPath;
-    aria2cVersionNotifier.value = version;
-    return BinaryInstallResult(path: targetPath, version: version);
-  }
 
 
 
