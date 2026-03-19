@@ -83,7 +83,7 @@ class SettingsScreen extends StatelessWidget {
                 _buildSettingItem(
                   context,
                   title: 'About YVD',
-                  subtitle: 'Version 1.0.4 Premium',
+                  subtitle: 'Version 1.0.5 Premium',
                   icon: LucideIcons.info,
                 ),
                 const SizedBox(height: 12),

@@ -8,7 +8,10 @@ import '../main.dart';
 import '../widgets/primary_button.dart';
 import '../services/ytdlp_service.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import 'package:gal/gal.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../services/update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cupertino_icons/cupertino_icons.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +29,18 @@ class _HomeScreenState extends State<HomeScreen> {
   double _downloadProgress = 0.0;
   VideoMetadata? _metadata;
   VideoQuality _selectedQuality = VideoQuality.p720;
+  GitHubRelease? _newUpdate;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdates();
+  }
+
+  void _checkForUpdates() async {
+    final update = await UpdateService().checkForUpdate();
+    if (mounted) setState(() => _newUpdate = update);
+  }
 
   @override
   void dispose() {
@@ -94,19 +109,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent, // Theme-aware gradient sits below
       body: Stack(
         children: [
-          // Theme-aware Smooth Gradient Background
+          // Theme-aware Smooth Gradient Background (Subtler for 1.0.5)
           Container(
             decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(-0.5, -0.6),
-                radius: 1.5,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: isDark 
-                  ? [const Color(0xFF1E1E1E), const Color(0xFF121212), const Color(0xFF0F0F0F)]
-                  : [Colors.white, const Color(0xFFF8F9FA), const Color(0xFFE9ECEF)],
-                stops: const [0.0, 0.4, 1.0],
+                  ? [const Color(0xFF1A1A1A), const Color(0xFF0F0F0F)]
+                  : [const Color(0xFFFFFFFF), const Color(0xFFF2F2F7)],
               ),
             ),
           ),
@@ -115,89 +129,103 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 48),
-                  
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Image.asset(
-                            'assets/images/logo.png',
-                            height: 48,
-                            width: 48,
-                          ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
-                          const SizedBox(width: 12),
-                          Text(
-                            'YVD',
-                            style: GoogleFonts.outfit(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1.0,
-                              color: isDark ? Colors.white : const Color(0xFF1A1A1A),
-                            ),
-                          ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
-                        ],
-                      ),
-                      _buildHeaderButton(LucideIcons.history, isDark, onPressed: () {}),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your personal video companion.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.5),
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ).animate().fadeIn(delay: 200.ms, duration: 600.ms).slideY(begin: 0.2),
-                  
-                  const SizedBox(height: 48),
-                  
-                  // URL Input Card
-                  GlassContainer(
-                    blur: 20,
-                    opacity: isDark ? 0.2 : 0.4,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: isDark ? Colors.white10 : Colors.white),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _urlController,
-                            style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1A1A1A), fontSize: 16),
-                            decoration: InputDecoration(
-                              hintText: 'Paste video link here...',
-                              hintStyle: TextStyle(color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.3)),
-                              border: InputBorder.none,
-                              icon: const Icon(LucideIcons.link, color: Color(0xFFFF0000)),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          PrimaryButton(
-                            label: 'ANALYZE URL',
-                            isLoading: _isAnalyzing,
-                            onPressed: _analyzeUrl,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 400.ms, duration: 600.ms).scale(begin: const Offset(0.9, 0.9)),
-                  
                   const SizedBox(height: 32),
+                  
+                  if (_newUpdate != null)
+                    _buildUpdateBanner(),
+                  
+                  const SizedBox(height: 48),
+
+                  // Header (iOS Style: Center Aligned)
+                  Center(
+                    child: Column(
+                      children: [
+                        Image.asset(
+                          'assets/images/logo.png',
+                          height: 80,
+                          width: 80,
+                        ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
+                        const SizedBox(height: 24),
+                        Text(
+                          'YVD',
+                          style: GoogleFonts.outfit(
+                            fontSize: 42,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.0,
+                            color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                          ),
+                        ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Paste. Analyze. Download.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                            letterSpacing: 0.5,
+                          ),
+                        ).animate().fadeIn(delay: 200.ms, duration: 800.ms),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+                  
+                  // Modern iOS Search Pill
+                  Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                          blurRadius: 32,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: GlassContainer(
+                      blur: 30,
+                      opacity: isDark ? 0.15 : 0.5,
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: isDark ? Colors.white10 : Colors.white),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Row(
+                          children: [
+                            const Icon(LucideIcons.link, color: Color(0xFFFF0000), size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _urlController,
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 16),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter video URL',
+                                  hintStyle: TextStyle(color: (isDark ? Colors.white : Colors.black).withOpacity(0.2)),
+                                  border: InputBorder.none,
+                                ),
+                                onSubmitted: (_) => _analyzeUrl(),
+                              ),
+                            ),
+                            if (_isAnalyzing)
+                              LoadingAnimationWidget.beat(color: const Color(0xFFFF0000), size: 24)
+                            else
+                              IconButton(
+                                icon: const Icon(LucideIcons.arrowRight, color: Color(0xFFFF0000)),
+                                onPressed: _analyzeUrl,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 400.ms, duration: 800.ms).scale(begin: const Offset(0.9, 0.9)),
+                  
+                  const SizedBox(height: 48),
                   
                   // Media Preview Card
                   if (_metadata != null)
                     _buildPreviewCard(),
                   
-                    _buildPreviewCard(),
-                  
-                  const SizedBox(height: 100), // Reserve some space
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -207,38 +235,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildUpdateBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(_newUpdate!.htmlUrl)),
+      child: GlassContainer(
+        blur: 10,
+        opacity: 0.1,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFF0000).withOpacity(0.3)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.gift, color: Color(0xFFFF0000), size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Update ${_newUpdate!.tagName} Available!',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const Icon(LucideIcons.externalLink, color: Color(0xFFFF0000), size: 16),
+            ],
+          ),
+        ),
+      ).animate().shake(),
+    );
+  }
+
 
   Widget _buildPreviewCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return GlassContainer(
-      blur: 20,
-      opacity: isDark ? 0.3 : 0.5,
-      borderRadius: BorderRadius.circular(32),
+      blur: 40,
+      opacity: isDark ? 0.2 : 0.5,
+      borderRadius: BorderRadius.circular(36),
       border: Border.all(color: isDark ? Colors.white10 : Colors.white),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Stack(
               alignment: Alignment.center,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(28),
                   child: Image.network(
                     _metadata!.thumbnailUrl,
                     width: double.infinity,
-                    height: 200,
+                    height: 220,
                     fit: BoxFit.cover,
                   ),
                 ),
                 if (_isDownloading)
                   Container(
                     width: double.infinity,
-                    height: 200,
+                    height: 220,
                     decoration: BoxDecoration(
                       color: Colors.black54,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(28),
                     ),
                     child: Center(
                       child: Column(
@@ -273,31 +334,50 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF1A1A1A),
+                      color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Quality',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                      letterSpacing: 1.0,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text('Select Quality', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _metadata!.qualities.map((q) {
-                      final isSelected = _selectedQuality == q;
-                      return ChoiceChip(
-                        label: Text(q.toString().split('.').last.replaceAll('p', '') + 'p'),
-                        selected: isSelected,
-                        onSelected: (val) => setState(() => _selectedQuality = q),
-                        selectedColor: const Color(0xFFFF0000),
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
-                          fontSize: 11,
-                        ),
-                      );
-                    }).toList(),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _metadata!.qualities.map((q) {
+                        final isSelected = _selectedQuality == q;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedQuality = q),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFFFF0000) : (isDark ? Colors.white05 : Colors.black.withOpacity(0.05)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              q.toString().split('.').last.replaceAll('p', '') + 'p',
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   PrimaryButton(
                     label: _isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD VIDEO',
                     onPressed: _isDownloading ? () {} : _startDownload,
