@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../globals.dart';
 import '../services/tool_update_service.dart';
 import '../services/update_service.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,7 +19,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final ToolUpdateService _toolUpdateService = ToolUpdateService();
-  String _version = '1.1.1';
+  String _version = '1.1.2';
 
   @override
   void initState() {
@@ -119,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: themeNotifier,
               builder: (context, theme, _) => _settingsCard(
                 child: SwitchListTile(
-                  secondary: const Icon(LucideIcons.moon),
+                  secondary: Icon(LucideIcons.moon),
                   title: const Text('Dark mode'),
                   subtitle: const Text('Switch between light and dark themes'),
                   value: theme == ThemeMode.dark,
@@ -136,10 +137,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: albumNotifier,
               builder: (context, album, _) => _settingsCard(
                 child: ListTile(
-                  leading: const Icon(LucideIcons.folder),
+                  leading: Icon(LucideIcons.folder),
                   title: const Text('Storage Path'),
                   subtitle: Text('/Gallery/$album'),
-                  trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                  trailing: Icon(LucideIcons.chevronRight, size: 18),
                   onTap: () => _showTextDialog(
                     title: 'Download Folder',
                     hint: 'e.g. YVD Downloads',
@@ -154,10 +155,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 valueListenable: ytdlpPathNotifier,
                 builder: (context, path, _) => _settingsCard(
                   child: ListTile(
-                    leading: const Icon(LucideIcons.terminal),
+                    leading: Icon(LucideIcons.terminal),
                     title: const Text('yt-dlp Binary'),
                     subtitle: Text(path.isEmpty ? 'Use internal' : path),
-                    trailing: const Icon(LucideIcons.edit3, size: 18),
+                    trailing: Icon(LucideIcons.edit3, size: 18),
                     onTap: () => _showTextDialog(
                       title: 'yt-dlp Path',
                       hint: r'C:\Tools\yt-dlp.exe',
@@ -171,10 +172,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 valueListenable: ffmpegPathNotifier,
                 builder: (context, path, _) => _settingsCard(
                   child: ListTile(
-                    leading: const Icon(LucideIcons.video),
+                    leading: Icon(LucideIcons.video),
                     title: const Text('FFmpeg Binary'),
                     subtitle: Text(path.isEmpty ? 'Optional' : path),
-                    trailing: const Icon(LucideIcons.edit3, size: 18),
+                    trailing: Icon(LucideIcons.edit3, size: 18),
                     onTap: () => _showTextDialog(
                       title: 'FFmpeg Path',
                       hint: r'C:\Tools\ffmpeg.exe',
@@ -191,13 +192,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(LucideIcons.fingerprint),
+                    leading: Icon(LucideIcons.fingerprint),
                     title: const Text('Software Version'),
                     subtitle: Text('v$_version'),
                   ),
                   const Divider(indent: 70, endIndent: 20, height: 1),
                   ListTile(
-                    leading: const Icon(LucideIcons.refreshCw),
+                    leading: Icon(LucideIcons.refreshCw),
                     title: const Text('Check for Updates'),
                     onTap: _manualUpdateCheck,
                   ),

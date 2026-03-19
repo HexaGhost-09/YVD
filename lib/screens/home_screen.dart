@@ -246,10 +246,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         controller: _urlController,
                         decoration: InputDecoration(
                           hintText: 'Paste video link here...',
-                          prefixIcon: const Icon(LucideIcons.link),
+                          prefixIcon: Icon(LucideIcons.link),
                           suffixIcon: _urlController.text.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(LucideIcons.x),
+                                  icon: Icon(LucideIcons.x),
                                   onPressed: () => setState(() => _urlController.clear()),
                                 )
                               : null,
@@ -268,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   width: 18,
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                 )
-                              : const Icon(LucideIcons.zap),
+                              : Icon(LucideIcons.zap),
                           label: Text(_isAnalyzing ? 'Analyzing...' : 'Analyze URL'),
                         ),
                       ),
@@ -482,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        const Icon(LucideIcons.chevronDown, size: 18),
+                        Icon(LucideIcons.chevronDown, size: 18),
                       ],
                     ),
                   ),

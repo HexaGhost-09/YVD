@@ -30,7 +30,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(LucideIcons.home),
             selectedIcon: Icon(LucideIcons.home),

@@ -85,7 +85,7 @@ class YVDApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         color: brightness == Brightness.dark ? const Color(0xFF1C1C1C) : scheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(
