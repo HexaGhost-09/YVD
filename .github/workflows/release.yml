@@ -1,88 +1,57 @@
-name: Build and Release YVD
+name: Build and Release
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ "v*.*.*" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
-  build_android:
-    name: Build Android (APK & Bundle)
+  build:
+    name: Build and Release Artifacts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Project Version
+        id: get_version
+        run: |
+          # Read version from pubspec.yaml and strip build number (the part after +)
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-      - uses: subosito/flutter-action@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-      - run: flutter pub get
-      - run: flutter build apk --release
-      - run: flutter build appbundle --release
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-release
-          path: build/app/outputs/flutter-apk/app-release.apk
 
-  build_windows:
-    name: Build Windows (EXE)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      - run: flutter pub get
-      - run: flutter build windows --release
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-release
-          path: build/windows/x64/runner/Release/
+      - name: Install Dependencies
+        run: flutter pub get
 
-  build_linux:
-    name: Build Linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev
-      - run: flutter pub get
-      - run: flutter config --enable-linux-desktop
-      - run: flutter build linux --release
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-release
-          path: build/linux/x64/release/bundle/
+      - name: Build APK
+        run: flutter build apk --release
 
-  create_release:
-    name: Create Release
-    needs: [build_android, build_windows, build_linux]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Build Windows
+        if: false # Set to true to include windows build, but user specifically asked for APK.
+        run: flutter build windows --release
+
+      - name: Create Release and Upload APK
+        uses: ncipollo/release-action@v1
         with:
-          files: |
-            android-release/app-release.apk
-            windows-release/*
-            linux-release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          tag: ${{ steps.get_version.outputs.VERSION }}
+          name: "Release v${{ steps.get_version.outputs.VERSION }}"
+          body: "Automated build of YVD version ${{ steps.get_version.outputs.VERSION }}"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:glassmorphism_ui/glassmorphism_ui.dart';
+import 'package:shimmer/shimmer.dart';
 import '../widgets/glow_background.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/option_card.dart';
@@ -14,11 +17,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _urlController = TextEditingController();
+  bool _isAnalyzing = false;
 
   @override
   void dispose() {
     _urlController.dispose();
     super.dispose();
+  }
+
+  void _analyzeUrl() async {
+    if (_urlController.text.isEmpty) return;
+    
+    setState(() => _isAnalyzing = true);
+    // Simulate analysis
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _isAnalyzing = false);
   }
 
   @override
@@ -62,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.white,
                         ),
                       ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2),
-                      _buildHeaderButton(Icons.history_rounded),
+                      _buildHeaderButton(LucideIcons.history),
                     ],
                   ),
                   
@@ -79,13 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 48),
                   
                   // URL Input Card
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    padding: const EdgeInsets.all(20),
+                  GlassContainer(
+                    blur: 20,
+                    opacity: 0.05,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
                         TextField(
@@ -95,13 +107,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             hintText: 'Paste video link here...',
                             hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
                             border: InputBorder.none,
-                            icon: const Icon(Icons.link_rounded, color: Color(0xFFFF0000)),
+                            icon: const Icon(LucideIcons.link, color: Color(0xFFFF0000)),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         PrimaryButton(
                           label: 'ANALYZE URL',
-                          onPressed: () {},
+                          isLoading: _isAnalyzing,
+                          onPressed: _analyzeUrl,
                         ),
                       ],
                     ),
@@ -122,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        'Settings',
+                        'All Settings',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.3),
@@ -133,59 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   const SizedBox(height: 16),
                   
-                  // Grid of options
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.5,
-                    children: [
-                      const OptionCard(
-                        title: 'Video Only',
-                        icon: Icons.videocam_rounded,
-                        color: Color(0xFFFF0000),
-                      ),
-                      const OptionCard(
-                        title: 'Audio (MP3)',
-                        icon: Icons.audiotrack_rounded,
-                        color: Colors.orange,
-                      ),
-                      const OptionCard(
-                        title: 'Shorts',
-                        icon: Icons.bolt_rounded,
-                        color: Colors.amber,
-                      ),
-                      const OptionCard(
-                        title: 'Playlist',
-                        icon: Icons.playlist_play_rounded,
-                        color: Colors.blue,
-                      ),
-                    ],
-                  ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1),
+                  // Grid of options or Shimmer
+                  _isAnalyzing ? _buildShimmerGrid() : _buildOptionGrid(),
                   
                   const SizedBox(height: 40),
                   
                   // Info Box
-                  Container(
+                  GlassContainer(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFFF0000).withOpacity(0.1),
-                          Colors.transparent,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white10),
-                    ),
+                    blur: 10,
+                    opacity: 0.03,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFFFF0000)),
+                        const Icon(LucideIcons.info, color: Color(0xFFFF0000), size: 20),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
@@ -210,15 +186,68 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeaderButton(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white10),
+  Widget _buildOptionGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.5,
+      children: const [
+        OptionCard(
+          title: 'Video Only',
+          icon: LucideIcons.video,
+          color: Color(0xFFFF0000),
+        ),
+        OptionCard(
+          title: 'Audio (MP3)',
+          icon: LucideIcons.music,
+          color: Colors.orange,
+        ),
+        OptionCard(
+          title: 'Shorts',
+          icon: LucideIcons.zap,
+          color: Colors.amber,
+        ),
+        OptionCard(
+          title: 'Playlist',
+          icon: LucideIcons.listVideo,
+          color: Colors.blue,
+        ),
+      ],
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1);
+  }
+
+  Widget _buildShimmerGrid() {
+    return Shimmer.fromColors(
+      baseColor: Colors.white.withOpacity(0.05),
+      highlightColor: Colors.white.withOpacity(0.1),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        childAspectRatio: 1.5,
+        children: List.generate(4, (index) => GlassContainer(
+          blur: 0,
+          opacity: 1,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(),
+        )),
       ),
-      child: Icon(icon, color: Colors.white, size: 24),
+    );
+  }
+
+  Widget _buildHeaderButton(IconData icon) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(12),
+      blur: 10,
+      opacity: 0.05,
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.white.withOpacity(0.1)),
+      child: Icon(icon, color: Colors.white, size: 20),
     );
   }
 }
