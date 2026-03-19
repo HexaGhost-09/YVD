@@ -137,11 +137,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
 
             const SizedBox(height: 32),
+            const SizedBox(height: 32),
             _sectionHeader(context, 'Core Binaries', LucideIcons.terminal),
             const SizedBox(height: 16),
             _binaryTile(context, ManagedBinary.ytDlp, LucideIcons.zap),
-            const SizedBox(height: 12),
-            _binaryTile(context, ManagedBinary.ffmpeg, LucideIcons.video),
             const SizedBox(height: 12),
             _binaryTile(context, ManagedBinary.aria2c, LucideIcons.download),
 
@@ -163,13 +162,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _binaryTile(BuildContext context, ManagedBinary binary, IconData icon) {
-    final notifier = binary == ManagedBinary.ytDlp ? ytdlpPathNotifier : 
-                     binary == ManagedBinary.ffmpeg ? ffmpegPathNotifier : aria2cPathNotifier;
-    final version = binary == ManagedBinary.ytDlp ? ytdlpVersionNotifier : 
-                    binary == ManagedBinary.ffmpeg ? ffmpegVersionNotifier : aria2cVersionNotifier;
+    final notifier = binary == ManagedBinary.ytDlp ? ytdlpPathNotifier : aria2cPathNotifier;
+    final version = binary == ManagedBinary.ytDlp ? ytdlpVersionNotifier : aria2cVersionNotifier;
     
-    final label = binary == ManagedBinary.ytDlp ? 'yt-dlp' : 
-                  binary == ManagedBinary.ffmpeg ? 'FFmpeg' : 'aria2c';
+    final label = binary == ManagedBinary.ytDlp ? 'yt-dlp' : 'aria2c';
+    final showInstall = binary == ManagedBinary.aria2c ? 'Extract' : 'Install';
 
     return ValueListenableBuilder(
       valueListenable: notifier,
@@ -179,10 +176,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListTile(
             leading: Icon(icon),
             title: Text(label),
-            subtitle: Text(path.isEmpty ? 'Not found' : (ver.isEmpty ? 'Installed' : ver)),
+            subtitle: Text(path.isEmpty ? (binary == ManagedBinary.aria2c ? 'Needs extraction' : 'Not found') : (ver.isEmpty ? 'Installed' : ver)),
             trailing: FilledButton.tonal(
               onPressed: () => _showBinaryUpdateDialog(binary),
-              child: Text(path.isEmpty ? 'Install' : 'Update'),
+              child: Text(path.isEmpty ? (binary == ManagedBinary.aria2c ? 'Setup' : 'Install') : 'Update'),
             ),
           ),
         ),
@@ -267,25 +264,35 @@ class _BinaryUpdateDialogState extends State<BinaryUpdateDialog> {
     if (_error != null) return AlertDialog(title: const Text('Error'), content: Text(_error!), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))]);
 
     final info = _info!;
+    final name = info.binary == ManagedBinary.ytDlp ? 'yt-dlp' : 'aria2c';
+    final isAria = info.binary == ManagedBinary.aria2c;
+    
     return AlertDialog(
-      title: Text('Update ${info.binary == ManagedBinary.ytDlp ? 'yt-dlp' : info.binary == ManagedBinary.ffmpeg ? 'FFmpeg' : 'aria2c'}'),
+      title: Text(isAria ? 'Setup aria2c' : 'Update $name'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Current: ${info.currentVersion}'),
-          Text('Latest: ${info.latestVersion}'),
+          if (isAria) 
+            const Text('Aria2c is bundled with the application for high-speed multi-threaded downloads.')
+          else ...[
+            Text('Current: ${info.currentVersion}'),
+            Text('Latest: ${info.latestVersion}'),
+          ],
           if (_isInstalling) ...[
             const SizedBox(height: 16),
-            LinearProgressIndicator(value: _progress),
+            LinearProgressIndicator(value: isAria ? null : _progress),
             const SizedBox(height: 8),
-            Text('Downloading... ${(_progress * 100).toInt()}%'),
+            Text(isAria ? 'Extracting...' : 'Downloading... ${(_progress * 100).toInt()}%'),
           ],
         ],
       ),
       actions: [
         TextButton(onPressed: _isInstalling ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: _isInstalling || (!info.updateAvailable && info.isInstalled) ? null : _install, child: const Text('Install Now')),
+        FilledButton(
+          onPressed: _isInstalling || (!isAria && !info.updateAvailable) ? null : _install, 
+          child: Text(isAria ? 'Extract Now' : 'Install Now')
+        ),
       ],
     );
   }

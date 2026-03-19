@@ -2,7 +2,7 @@ name: yvd
 description: "YVD - Premium Video Downloader and Manager."
 publish_to: 'none'
 
-version: 1.2.3+23
+version: 1.2.4+24
 
 environment:
   sdk: ^3.10.7
@@ -40,6 +40,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
+    - assets/binaries/
 
 flutter_launcher_icons:
   android: true

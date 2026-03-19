@@ -4,11 +4,12 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../globals.dart';
 
-enum ManagedBinary { ytDlp, ffmpeg, aria2c }
+enum ManagedBinary { ytDlp, aria2c }
 
 class BinaryUpdateInfo {
   final ManagedBinary binary;
@@ -50,13 +51,16 @@ class ToolUpdateService {
   static const _ytDlpLatestWindows = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
   static const _ytDlpLatestLinux = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
   static const _ytDlpLatestMac = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos';
-  static const _ffmpegLatestRelease = 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest';
+  
+  // For Android, we use the architecture-specific binary if possible or the zipapp
+  static const _ytDlpLatestAndroid = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64';
+  
   static const _aria2cLatestRelease = 'https://api.github.com/repos/aria2/aria2/releases/latest';
 
-  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+  bool get _isSupportedPlatform => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS || Platform.isAndroid);
 
   Future<BinaryUpdateInfo> checkUpdate(ManagedBinary binary) async {
-    if (!_isDesktop) {
+    if (!_isSupportedPlatform) {
       return BinaryUpdateInfo(
         binary: binary,
         isSupported: false,
@@ -73,8 +77,6 @@ class ToolUpdateService {
     switch (binary) {
       case ManagedBinary.ytDlp:
         return _checkYtDlp();
-      case ManagedBinary.ffmpeg:
-        return _checkFfmpeg();
       case ManagedBinary.aria2c:
         return _checkAria2c();
     }
@@ -84,17 +86,15 @@ class ToolUpdateService {
     ManagedBinary binary, {
     void Function(double progress)? onProgress,
   }) async {
-    if (!_isDesktop) {
-      throw UnsupportedError('Binary updates are only supported on desktop.');
+    if (!_isSupportedPlatform) {
+      throw UnsupportedError('Binary updates are only supported on selected platforms.');
     }
 
     switch (binary) {
       case ManagedBinary.ytDlp:
         return _installYtDlp(onProgress: onProgress);
-      case ManagedBinary.ffmpeg:
-        return _installFfmpegWindows(onProgress: onProgress);
       case ManagedBinary.aria2c:
-        return _installAria2cWindows(onProgress: onProgress);
+        return _installAria2cFromAssets();
     }
   }
 
@@ -124,50 +124,22 @@ class ToolUpdateService {
     }
   }
 
-  Future<BinaryUpdateInfo> _checkFfmpeg() async {
-    try {
-      final latest = await _fetchReleaseJson(_ffmpegLatestRelease);
-      final latestPublishedAt = latest['published_at']?.toString() ?? '';
-      final currentPath = ffmpegPathNotifier.value.trim();
-      final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
-      final currentVersion = ffmpegVersionNotifier.value.trim();
-      final updateAvailable = !installed || (currentVersion != latestPublishedAt);
-
-      return BinaryUpdateInfo(
-        binary: ManagedBinary.ffmpeg,
-        isSupported: Platform.isWindows,
-        isInstalled: installed,
-        updateAvailable: updateAvailable,
-        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not installed',
-        latestVersion: latestPublishedAt,
-        installedPath: currentPath,
-        releaseUrl: latest['html_url']?.toString() ?? '',
-        releaseNotes: latest['body']?.toString() ?? '',
-      );
-    } catch (e) {
-      return _errorInfo(ManagedBinary.ffmpeg, e.toString());
-    }
-  }
-
   Future<BinaryUpdateInfo> _checkAria2c() async {
     try {
-      final latest = await _fetchReleaseJson(_aria2cLatestRelease);
-      final latestTag = _normalizeVersion(latest['tag_name']?.toString() ?? '');
       final currentPath = aria2cPathNotifier.value.trim();
       final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
       final currentVersion = aria2cVersionNotifier.value.trim();
-      final updateAvailable = !installed || (currentVersion != latestTag);
 
       return BinaryUpdateInfo(
         binary: ManagedBinary.aria2c,
-        isSupported: Platform.isWindows,
+        isSupported: true,
         isInstalled: installed,
-        updateAvailable: updateAvailable,
-        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not installed',
-        latestVersion: latestTag,
+        updateAvailable: false, // We update aria2c via app updates
+        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not bundled',
+        latestVersion: 'Bundled',
         installedPath: currentPath,
-        releaseUrl: latest['html_url']?.toString() ?? '',
-        releaseNotes: latest['body']?.toString() ?? '',
+        releaseUrl: '',
+        releaseNotes: 'aria2c is now bundled with the app for all platforms.',
       );
     } catch (e) {
       return _errorInfo(ManagedBinary.aria2c, e.toString());
@@ -187,41 +159,25 @@ class ToolUpdateService {
     return BinaryInstallResult(path: targetPath, version: version);
   }
 
-  Future<BinaryInstallResult> _installFfmpegWindows({void Function(double progress)? onProgress}) async {
-    final latest = await _fetchReleaseJson(_ffmpegLatestRelease);
-    final version = latest['published_at']?.toString() ?? 'Latest';
-    final asset = _selectAsset(latest['assets'] as List<dynamic>, (name) => name.contains('win64') && name.endsWith('.zip'));
-    final downloadUrl = asset['browser_download_url'].toString();
+  Future<BinaryInstallResult> _installAria2cFromAssets() async {
+    final version = '1.37.0'; // Hardcoded for bundled version
+    final assetPath = Platform.isWindows ? 'assets/binaries/aria2c.exe' : 'assets/binaries/aria2c_android';
+    final exeName = Platform.isWindows ? 'aria2c.exe' : 'aria2c';
     
-    final exePath = await _installFromZip(
-      'ffmpeg',
-      downloadUrl,
-      'ffmpeg.exe',
-      onProgress: onProgress,
-    );
+    final targetPath = await _resolveBinaryInstallPath('aria2c', exeName);
+    
+    // Copy from assets to local filesystem
+    final byteData = await rootBundle.load(assetPath);
+    final file = File(targetPath);
+    await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+    await _makeExecutableIfNeeded(targetPath);
 
-    ffmpegPathNotifier.value = exePath;
-    ffmpegVersionNotifier.value = version;
-    return BinaryInstallResult(path: exePath, version: version);
-  }
-
-  Future<BinaryInstallResult> _installAria2cWindows({void Function(double progress)? onProgress}) async {
-    final latest = await _fetchReleaseJson(_aria2cLatestRelease);
-    final version = _normalizeVersion(latest['tag_name']?.toString() ?? '');
-    final asset = _selectAsset(latest['assets'] as List<dynamic>, (name) => name.contains('win-64bit') && name.endsWith('.zip'));
-    final downloadUrl = asset['browser_download_url'].toString();
-
-    final exePath = await _installFromZip(
-      'aria2c',
-      downloadUrl,
-      'aria2c.exe',
-      onProgress: onProgress,
-    );
-
-    aria2cPathNotifier.value = exePath;
+    aria2cPathNotifier.value = targetPath;
     aria2cVersionNotifier.value = version;
-    return BinaryInstallResult(path: exePath, version: version);
+    return BinaryInstallResult(path: targetPath, version: version);
   }
+
+
 
   Future<String> _installFromZip(String name, String url, String exeName, {void Function(double progress)? onProgress}) async {
     final supportDir = await getApplicationSupportDirectory();
@@ -264,6 +220,7 @@ class ToolUpdateService {
 
   String _ytDlpDownloadUrl() {
     if (Platform.isWindows) return _ytDlpLatestWindows;
+    if (Platform.isAndroid) return _ytDlpLatestAndroid;
     if (Platform.isLinux) return _ytDlpLatestLinux;
     return _ytDlpLatestMac;
   }
