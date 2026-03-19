@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 import 'package:shimmer/shimmer.dart';
-import '../main.dart';
 import '../widgets/primary_button.dart';
 import '../services/ytdlp_service.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';

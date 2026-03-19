@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
-import '../main.dart';
+import '../globals.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -53,7 +53,7 @@ class SettingsScreen extends StatelessWidget {
                   trailing: Switch(
                     value: isDark,
                     onChanged: (val) {
-                      YVDApp.themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                      themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
                     },
                     activeColor: const Color(0xFFFF0000),
                   ),

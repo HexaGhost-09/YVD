@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/navigation_screen.dart';
+import 'globals.dart';
 
 void main() {
   runApp(const YVDApp());
@@ -8,8 +9,6 @@ void main() {
 
 class YVDApp extends StatelessWidget {
   const YVDApp({super.key});
-
-  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
   @override
   Widget build(BuildContext context) {
