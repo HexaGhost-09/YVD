@@ -360,7 +360,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             margin: const EdgeInsets.only(right: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFFFF0000) : (isDark ? Colors.white05 : Colors.black.withOpacity(0.05)),
+                              color: isSelected
+                                  ? const Color(0xFFFF0000)
+                                  : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05)),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
