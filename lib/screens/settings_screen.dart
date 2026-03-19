@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -15,7 +18,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _version = "1.0.6";
+  String _version = "1.0.7";
 
   @override
   void initState() {
@@ -25,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
     setState(() => _version = info.version);
   }
 
@@ -36,10 +40,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Download Album Name'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'e.g., YVD, MyVideos, etc.'),
+          decoration: const InputDecoration(
+            hintText: 'e.g., YVD, MyVideos, etc.',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               albumNotifier.value = controller.text.trim();
@@ -52,9 +61,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showBinaryPathDialog({
+    required BuildContext context,
+    required String title,
+    required String hint,
+    required ValueNotifier<String> notifier,
+  }) {
+    final controller = TextEditingController(text: notifier.value);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(hintText: hint),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              notifier.value = '';
+              Navigator.pop(context);
+            },
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () {
+              notifier.value = controller.text.trim();
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _manualUpdateCheck() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checking for updates...')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Checking for updates...')));
     final update = await UpdateService().checkForUpdate();
+    if (!mounted) return;
     if (update != null) {
       showDialog(
         context: context,
@@ -62,10 +113,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: Text('New Update ${update.tagName} Available!'),
           content: Text(update.body),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Later')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Later'),
+            ),
             TextButton(
               onPressed: () {
-                launchUrl(Uri.parse(update.htmlUrl), mode: LaunchMode.externalApplication);
+                launchUrl(
+                  Uri.parse(update.htmlUrl),
+                  mode: LaunchMode.externalApplication,
+                );
                 Navigator.pop(context);
               },
               child: const Text('Download'),
@@ -74,13 +131,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are on the latest version.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You are on the latest version.')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final supportsDesktopBinaries =
+        !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -91,9 +152,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               gradient: RadialGradient(
                 center: const Alignment(-0.5, -0.6),
                 radius: 1.5,
-                colors: isDark 
-                  ? [const Color(0xFF1E1E1E), const Color(0xFF121212), const Color(0xFF0F0F0F)]
-                  : [Colors.white, const Color(0xFFF8F9FA), const Color(0xFFE9ECEF)],
+                colors: isDark
+                    ? [
+                        const Color(0xFF1E1E1E),
+                        const Color(0xFF121212),
+                        const Color(0xFF0F0F0F),
+                      ]
+                    : [
+                        Colors.white,
+                        const Color(0xFFF8F9FA),
+                        const Color(0xFFE9ECEF),
+                      ],
                 stops: const [0.0, 0.4, 1.0],
               ),
             ),
@@ -121,13 +190,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     context,
                     title: 'Dark Mode',
                     subtitle: 'Use dark theme across the app',
-                    icon: theme == ThemeMode.dark ? LucideIcons.moon : LucideIcons.sun,
+                    icon: theme == ThemeMode.dark
+                        ? LucideIcons.moon
+                        : LucideIcons.sun,
                     trailing: Switch(
                       value: theme == ThemeMode.dark,
                       onChanged: (val) {
-                        themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                        themeNotifier.value = val
+                            ? ThemeMode.dark
+                            : ThemeMode.light;
                       },
-                      activeColor: const Color(0xFFFF0000),
+                      activeThumbColor: const Color(0xFFFF0000),
                     ),
                   ),
                 ),
@@ -145,6 +218,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: LucideIcons.folderDown,
                   ),
                 ),
+                if (supportsDesktopBinaries) ...[
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder(
+                    valueListenable: ytdlpPathNotifier,
+                    builder: (context, path, _) => _buildSettingItem(
+                      context,
+                      onTap: () => _showBinaryPathDialog(
+                        context: context,
+                        title: 'yt-dlp Path',
+                        hint: r'C:\Tools\yt-dlp.exe',
+                        notifier: ytdlpPathNotifier,
+                      ),
+                      title: 'yt-dlp Binary',
+                      subtitle: path.isEmpty ? 'Not configured' : path,
+                      icon: LucideIcons.terminalSquare,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder(
+                    valueListenable: ffmpegPathNotifier,
+                    builder: (context, path, _) => _buildSettingItem(
+                      context,
+                      onTap: () => _showBinaryPathDialog(
+                        context: context,
+                        title: 'FFmpeg Path',
+                        hint: r'C:\Tools\ffmpeg.exe',
+                        notifier: ffmpegPathNotifier,
+                      ),
+                      title: 'FFmpeg Binary',
+                      subtitle: path.isEmpty
+                          ? 'Optional, used by yt-dlp when needed'
+                          : path,
+                      icon: LucideIcons.settings2,
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 32),
                 _buildGroupLabel(context, 'App'),
@@ -163,14 +272,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'Get the latest features and fixes',
                   icon: LucideIcons.refreshCw,
                 ),
-                
+
                 const SizedBox(height: 60),
                 Center(
                   child: Opacity(
                     opacity: 0.3,
                     child: Text(
                       'Made with ❤️ by HexaGhost',
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 12),
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -213,8 +325,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: isDark ? Colors.white10 : Colors.white),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          leading: Icon(icon, color: isDestructive ? Colors.red : const Color(0xFFFF0000), size: 24),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 8,
+          ),
+          leading: Icon(
+            icon,
+            color: isDestructive ? Colors.red : const Color(0xFFFF0000),
+            size: 24,
+          ),
           title: Text(
             title,
             style: TextStyle(
@@ -226,11 +345,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: Text(
             subtitle,
             style: TextStyle(
-              color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.5),
+              color: (isDark ? Colors.white : const Color(0xFF1A1A1A))
+                  .withOpacity(0.5),
               fontSize: 13,
             ),
           ),
-          trailing: trailing ?? Icon(LucideIcons.chevronRight, size: 18, color: (isDark ? Colors.white : Colors.black).withOpacity(0.2)),
+          trailing:
+              trailing ??
+              Icon(
+                LucideIcons.chevronRight,
+                size: 18,
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
+              ),
         ),
       ),
     );
