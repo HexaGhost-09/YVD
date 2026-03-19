@@ -14,45 +14,23 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF0000).withOpacity(0.2),
-            blurRadius: 20,
-            spreadRadius: -5,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
+      child: FilledButton(
         onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFF0000),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
         child: isLoading
             ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
-                ),
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               )
             : Text(
                 label,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
                 ),
               ),
       ),

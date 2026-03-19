@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:glassmorphism_ui/glassmorphism_ui.dart';
-import '../widgets/primary_button.dart';
-import '../services/ytdlp_service.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import '../services/update_service.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../services/update_service.dart';
+import '../services/ytdlp_service.dart';
+import '../widgets/primary_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,11 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _checkForUpdates();
   }
 
-  void _checkForUpdates() async {
-    final update = await UpdateService().checkForUpdate();
-    if (mounted) setState(() => _newUpdate = update);
-  }
-
   @override
   void dispose() {
     _urlController.dispose();
@@ -46,41 +40,41 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _analyzeUrl() async {
-    if (_urlController.text.isEmpty) return;
+  Future<void> _checkForUpdates() async {
+    final update = await UpdateService().checkForUpdate();
+    if (mounted) setState(() => _newUpdate = update);
+  }
 
+  Future<void> _analyzeUrl() async {
+    if (_urlController.text.isEmpty) return;
     setState(() {
       _isAnalyzing = true;
       _metadata = null;
     });
 
     final meta = await _ytdlpService.getMetadata(_urlController.text);
+    if (!mounted) return;
 
-    if (mounted) {
-      setState(() {
-        _isAnalyzing = false;
-        _metadata = meta;
-        final preferredOptions =
-            meta?.optionsFor(DownloadType.videoWithAudio) ?? const [];
-        _selectedOption = preferredOptions.isNotEmpty
-            ? preferredOptions.first
-            : _firstAvailableOption(meta);
-        _selectedType = _selectedOption?.type ?? DownloadType.videoWithAudio;
-      });
+    setState(() {
+      _isAnalyzing = false;
+      _metadata = meta;
+      final preferredOptions =
+          meta?.optionsFor(DownloadType.videoWithAudio) ?? const [];
+      _selectedOption = preferredOptions.isNotEmpty
+          ? preferredOptions.first
+          : _firstAvailableOption(meta);
+      _selectedType = _selectedOption?.type ?? DownloadType.videoWithAudio;
+    });
 
-      if (meta == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid video URL or platform not supported.'),
-          ),
-        );
-      }
+    if (meta == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid video URL or platform not supported.')),
+      );
     }
   }
 
-  void _startDownload() async {
+  Future<void> _startDownload() async {
     if (_metadata == null || _selectedOption == null || _isDownloading) return;
-
     setState(() {
       _isDownloading = true;
       _downloadProgress = 0.0;
@@ -92,20 +86,15 @@ class _HomeScreenState extends State<HomeScreen> {
         option: _selectedOption!,
         onProgress: (p) => setState(() => _downloadProgress = p),
       );
-
       if (mounted) {
         setState(() => _isDownloading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(result.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _isDownloading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Download failed. Check your connection.'),
-          ),
+          const SnackBar(content: Text('Download failed. Check your connection.')),
         );
       }
     }
@@ -115,9 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (metadata == null) return null;
     for (final type in DownloadType.values) {
       final options = metadata.optionsFor(type);
-      if (options.isNotEmpty) {
-        return options.first;
-      }
+      if (options.isNotEmpty) return options.first;
     }
     return null;
   }
@@ -136,99 +123,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final selected = await showModalBottomSheet<DownloadOption>(
       context: context,
-      backgroundColor: Colors.transparent,
+      showDragHandle: true,
       builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF171717) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-              children: [
-                Center(
-                  child: Container(
-                    width: 48,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(
-                        0.15,
-                      ),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
+        return SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            shrinkWrap: true,
+            children: [
+              Text('Choose quality', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                'Available formats for ${_downloadTypeLabel(_selectedType)}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              ...options.map(
+                (option) => RadioListTile<DownloadOption>(
+                  value: option,
+                  groupValue: _selectedOption,
+                  onChanged: (value) => Navigator.pop(context, value),
+                  title: Text(option.label),
+                  subtitle: Text(option.details),
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  'Choose Quality',
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF1D1D1F),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Available formats for ${_downloadTypeLabel(_selectedType)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: (isDark ? Colors.white : Colors.black).withOpacity(
-                      0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ...options.map(
-                  (option) => ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    tileColor: _selectedOption?.id == option.id
-                        ? const Color(0xFFFF0000).withOpacity(0.12)
-                        : (isDark
-                              ? Colors.white.withOpacity(0.04)
-                              : Colors.black.withOpacity(0.04)),
-                    title: Text(
-                      option.label,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF1D1D1F),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      option.details,
-                      style: TextStyle(
-                        color: (isDark ? Colors.white : Colors.black)
-                            .withOpacity(0.55),
-                      ),
-                    ),
-                    trailing: _selectedOption?.id == option.id
-                        ? const Icon(
-                            LucideIcons.check,
-                            color: Color(0xFFFF0000),
-                          )
-                        : null,
-                    onTap: () => Navigator.pop(context, option),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
     );
 
-    if (selected != null && mounted) {
-      setState(() => _selectedOption = selected);
-    }
+    if (selected != null && mounted) setState(() => _selectedOption = selected);
   }
 
   String _downloadTypeLabel(DownloadType type) {
@@ -244,163 +168,119 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Theme-aware gradient sits below
       body: Stack(
         children: [
-          // Theme-aware Smooth Gradient Background (Subtler for 1.0.5)
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [const Color(0xFF1A1A1A), const Color(0xFF0F0F0F)]
-                    : [const Color(0xFFFFFFFF), const Color(0xFFF2F2F7)],
+          // Background Gradient
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.surface,
+                    scheme.primary.withOpacity(0.05),
+                    scheme.surface,
+                  ],
+                ),
               ),
             ),
           ),
-
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 32),
-
-                  if (_newUpdate != null) _buildUpdateBanner(),
-
-                  const SizedBox(height: 48),
-
-                  // Header (iOS Style: Center Aligned)
-                  Center(
-                    child: Column(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              children: [
+                if (_newUpdate != null)
+                  _buildUpdateBanner(context).animate().fadeIn().scale(delay: 100.ms),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(LucideIcons.download, color: scheme.onPrimary, size: 28),
+                    ).animate().scale(delay: 200.ms),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Image.asset(
-                          'assets/images/logo.png',
-                          height: 80,
-                          width: 80,
-                        ).animate().scale(
-                          duration: 800.ms,
-                          curve: Curves.elasticOut,
+                        Text('YVD', style: textTheme.displaySmall),
+                        Text(
+                          'Premium Video Downloader',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'YVD',
-                          style: GoogleFonts.outfit(
-                            fontSize: 42,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0,
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF1D1D1F),
-                          ),
-                        ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Paste. Analyze. Download.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: (isDark ? Colors.white : Colors.black)
-                                .withOpacity(0.4),
-                            letterSpacing: 0.5,
-                          ),
-                        ).animate().fadeIn(delay: 200.ms, duration: 800.ms),
                       ],
                     ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                
+                // Search Console
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: scheme.outlineVariant.withOpacity(0.5)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.shadow.withOpacity(0.04),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 60),
-
-                  // Modern iOS Search Pill
-                  Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                isDark ? 0.3 : 0.08,
-                              ),
-                              blurRadius: 32,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _urlController,
+                        decoration: InputDecoration(
+                          hintText: 'Paste video link here...',
+                          prefixIcon: const Icon(LucideIcons.link),
+                          suffixIcon: _urlController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(LucideIcons.x),
+                                  onPressed: () => setState(() => _urlController.clear()),
+                                )
+                              : null,
                         ),
-                        child: GlassContainer(
-                          blur: 30,
-                          opacity: isDark ? 0.15 : 0.5,
-                          borderRadius: BorderRadius.circular(40),
-                          border: Border.all(
-                            color: isDark ? Colors.white10 : Colors.white,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.link,
-                                  color: Color(0xFFFF0000),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _urlController,
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black,
-                                      fontSize: 16,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: 'Enter video URL',
-                                      hintStyle: TextStyle(
-                                        color:
-                                            (isDark
-                                                    ? Colors.white
-                                                    : Colors.black)
-                                                .withOpacity(0.2),
-                                      ),
-                                      border: InputBorder.none,
-                                    ),
-                                    onSubmitted: (_) => _analyzeUrl(),
-                                  ),
-                                ),
-                                if (_isAnalyzing)
-                                  LoadingAnimationWidget.beat(
-                                    color: const Color(0xFFFF0000),
-                                    size: 24,
-                                  )
-                                else
-                                  IconButton(
-                                    icon: const Icon(
-                                      LucideIcons.arrowRight,
-                                      color: Color(0xFFFF0000),
-                                    ),
-                                    onPressed: _analyzeUrl,
-                                  ),
-                              ],
-                            ),
-                          ),
+                        onChanged: (v) => setState(() {}),
+                        onSubmitted: (_) => _analyzeUrl(),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isAnalyzing ? null : _analyzeUrl,
+                          icon: _isAnalyzing
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(LucideIcons.zap),
+                          label: Text(_isAnalyzing ? 'Analyzing...' : 'Analyze URL'),
                         ),
-                      )
-                      .animate()
-                      .fadeIn(delay: 400.ms, duration: 800.ms)
-                      .scale(begin: const Offset(0.9, 0.9)),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1),
 
-                  const SizedBox(height: 48),
-
-                  // Media Preview Card
-                  if (_metadata != null) _buildPreviewCard(),
-
-                  const SizedBox(height: 80),
-                ],
-              ),
+                const SizedBox(height: 24),
+                if (_metadata != null)
+                  _buildPreviewCard(context).animate().fadeIn().slideY(begin: 0.05),
+                const SizedBox(height: 80),
+              ],
             ),
           ),
         ],
@@ -408,264 +288,229 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildUpdateBanner() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: () => launchUrl(Uri.parse(_newUpdate!.htmlUrl)),
-      child: GlassContainer(
-        blur: 10,
-        opacity: 0.1,
+  Widget _buildUpdateBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => launchUrl(Uri.parse(_newUpdate!.htmlUrl)),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFF0000).withOpacity(0.3)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: scheme.primary.withOpacity(0.2)),
+          ),
           child: Row(
             children: [
-              const Icon(LucideIcons.gift, color: Color(0xFFFF0000), size: 20),
+              Icon(LucideIcons.gift, color: scheme.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Update ${_newUpdate!.tagName} Available!',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                  'Update ${_newUpdate!.tagName} is here!',
+                  style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.bold),
                 ),
               ),
-              const Icon(
-                LucideIcons.externalLink,
-                color: Color(0xFFFF0000),
-                size: 16,
-              ),
+              Icon(LucideIcons.chevronRight, size: 18, color: scheme.primary),
             ],
           ),
         ),
-      ).animate().shake(),
+      ),
     );
   }
 
-  Widget _buildPreviewCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildPreviewCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return GlassContainer(
-      blur: 40,
-      opacity: isDark ? 0.2 : 0.5,
-      borderRadius: BorderRadius.circular(36),
-      border: Border.all(color: isDark ? Colors.white10 : Colors.white),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Image.network(
-                    _metadata!.thumbnailUrl,
-                    width: double.infinity,
-                    height: 220,
-                    fit: BoxFit.cover,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              Image.network(
+                _metadata!.thumbnailUrl,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.1),
+                        Colors.black.withOpacity(0.6),
+                      ],
+                    ),
                   ),
                 ),
-                if (_isDownloading)
-                  Container(
-                    width: double.infinity,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          LoadingAnimationWidget.staggeredDotsWave(
+              ),
+              if (_isDownloading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black45,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        LoadingAnimationWidget.staggeredDotsWave(
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '${(_downloadProgress * 100).toInt()}%',
+                          style: textTheme.headlineMedium?.copyWith(
                             color: Colors.white,
-                            size: 40,
+                            fontWeight: FontWeight.w900,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '${(_downloadProgress * 100).toInt()}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _metadata!.duration.inMinutes > 0
+                            ? '${_metadata!.duration.inMinutes}:${(_metadata!.duration.inSeconds % 60).toString().padLeft(2, '0')}'
+                            : 'Live',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _metadata!.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: scheme.tertiaryContainer,
+                      child: Icon(LucideIcons.user, size: 14, color: scheme.onTertiaryContainer),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _metadata!.author,
+                      style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text('Download Format', style: textTheme.titleSmall),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<DownloadType>(
+                    segments: DownloadType.values.map((type) {
+                      final enabled = _metadata!.optionsFor(type).isNotEmpty;
+                      return ButtonSegment<DownloadType>(
+                        value: type,
+                        label: Text(_downloadTypeLabel(type)),
+                        enabled: enabled,
+                        icon: Icon(_typeIcon(type)),
+                      );
+                    }).toList(),
+                    selected: {_selectedType},
+                    onSelectionChanged: (set) => _selectType(set.first),
+                    showSelectedIcon: false,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text('Quality & Bits', style: textTheme.titleSmall),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _showQualityMenu,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: scheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.settings2, size: 20, color: scheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _selectedOption?.label ?? 'Select quality',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              if (_selectedOption != null)
+                                Text(
+                                  _selectedOption!.details,
+                                  style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Icon(LucideIcons.chevronDown, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                PrimaryButton(
+                  label: _isDownloading
+                      ? 'Downloading...'
+                      : 'Download Now',
+                  onPressed: _startDownload,
+                  isLoading: _isDownloading,
+                ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _metadata!.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF1D1D1F),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_metadata!.author} | ${_metadata!.duration.inMinutes}:${(_metadata!.duration.inSeconds % 60).toString().padLeft(2, '0')}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(
-                        0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Download Type',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(
-                        0.4,
-                      ),
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: DownloadType.values.map((type) {
-                        final isSelected = _selectedType == type;
-                        final isEnabled = _metadata!
-                            .optionsFor(type)
-                            .isNotEmpty;
-                        return GestureDetector(
-                          onTap: isEnabled ? () => _selectType(type) : null,
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFFFF0000)
-                                  : (isDark
-                                        ? Colors.white.withOpacity(0.05)
-                                        : Colors.black.withOpacity(0.05)),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _downloadTypeLabel(type),
-                              style: TextStyle(
-                                color: isEnabled
-                                    ? (isSelected
-                                          ? Colors.white
-                                          : (isDark
-                                                ? Colors.white70
-                                                : Colors.black54))
-                                    : (isDark
-                                          ? Colors.white24
-                                          : Colors.black26),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Quality',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(
-                        0.4,
-                      ),
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: _showQualityMenu,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.05)
-                            : Colors.black.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedOption?.label ??
-                                      'No format available',
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white
-                                        : const Color(0xFF1D1D1F),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                if (_selectedOption != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _selectedOption!.details,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color:
-                                          (isDark ? Colors.white : Colors.black)
-                                              .withOpacity(0.5),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            LucideIcons.chevronDown,
-                            color: (isDark ? Colors.white : Colors.black)
-                                .withOpacity(0.35),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  PrimaryButton(
-                    label: _isDownloading
-                        ? 'DOWNLOADING...'
-                        : 'DOWNLOAD ${_downloadTypeLabel(_selectedType).toUpperCase()}',
-                    onPressed: (_isDownloading || _selectedOption == null)
-                        ? () {}
-                        : _startDownload,
-                    isLoading: _isDownloading,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ).animate().fadeIn().slideY(begin: 0.1);
+    );
+  }
+
+  IconData _typeIcon(DownloadType type) {
+    switch (type) {
+      case DownloadType.videoWithAudio:
+        return LucideIcons.video;
+      case DownloadType.videoOnly:
+        return LucideIcons.clapperboard;
+      case DownloadType.audioOnly:
+        return LucideIcons.music;
+    }
   }
 }
