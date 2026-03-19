@@ -58,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isAnalyzing = false;
       _metadata = meta;
+      final preferredOptions = meta?.optionsFor(DownloadType.videoOnly) ?? const [];
       _selectedOption = preferredOptions.isNotEmpty
           ? preferredOptions.first
           : _firstAvailableOption(meta);
