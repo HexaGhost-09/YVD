@@ -92,6 +92,10 @@ class ToolUpdateService {
 
     switch (binary) {
       case ManagedBinary.ytDlp:
+        final current = ytdlpPathNotifier.value;
+        if (current.isEmpty || !File(current).existsSync()) {
+          return _installYtDlpFromAssets();
+        }
         return _installYtDlp(onProgress: onProgress);
       case ManagedBinary.aria2c:
         return _installAria2cFromAssets();
@@ -103,9 +107,11 @@ class ToolUpdateService {
       final latest = await _fetchReleaseJson(_ytDlpLatestRelease);
       final latestTag = _normalizeVersion(latest['tag_name']?.toString() ?? '');
       final latestNotes = latest['body']?.toString() ?? '';
+      
       final currentPath = ytdlpPathNotifier.value.trim();
-      final currentVersion = await _readExecutableVersion(currentPath, ['--version']);
       final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
+      final currentVersion = await _readExecutableVersion(currentPath, ['--version']);
+      
       final updateAvailable = !installed || (currentVersion.isNotEmpty && _isNewer(latestTag, currentVersion));
 
       return BinaryUpdateInfo(
@@ -113,7 +119,7 @@ class ToolUpdateService {
         isSupported: true,
         isInstalled: installed,
         updateAvailable: updateAvailable,
-        currentVersion: installed ? currentVersion : 'Not installed',
+        currentVersion: installed ? currentVersion : 'Needs extraction',
         latestVersion: latestTag,
         installedPath: currentPath,
         releaseUrl: latest['html_url']?.toString() ?? '',
@@ -134,16 +140,34 @@ class ToolUpdateService {
         binary: ManagedBinary.aria2c,
         isSupported: true,
         isInstalled: installed,
-        updateAvailable: false, // We update aria2c via app updates
-        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not bundled',
+        updateAvailable: false, // We update bundled tools via app updates or manual trigger
+        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Needs extraction',
         latestVersion: 'Bundled',
         installedPath: currentPath,
         releaseUrl: '',
-        releaseNotes: 'aria2c is now bundled with the app for all platforms.',
+        releaseNotes: 'aria2c is bundled with the app.',
       );
     } catch (e) {
       return _errorInfo(ManagedBinary.aria2c, e.toString());
     }
+  }
+
+  Future<BinaryInstallResult> _installYtDlpFromAssets() async {
+    final version = '2025.01.15'; // Approximation for bundled version
+    final assetPath = Platform.isWindows ? 'assets/binaries/yt-dlp.exe' : 'assets/binaries/yt-dlp_android';
+    final exeName = Platform.isWindows ? 'yt-dlp.exe' : 'yt-dlp';
+    
+    final targetPath = await _resolveBinaryInstallPath('yt-dlp', exeName);
+    
+    // Copy from assets to local filesystem
+    final byteData = await rootBundle.load(assetPath);
+    final file = File(targetPath);
+    await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+    await _makeExecutableIfNeeded(targetPath);
+
+    ytdlpPathNotifier.value = targetPath;
+    ytdlpVersionNotifier.value = version;
+    return BinaryInstallResult(path: targetPath, version: version);
   }
 
   Future<BinaryInstallResult> _installYtDlp({void Function(double progress)? onProgress}) async {
