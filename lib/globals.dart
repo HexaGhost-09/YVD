@@ -5,6 +5,8 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 final ValueNotifier<String> albumNotifier = ValueNotifier("YVD");
 final ValueNotifier<String> ytdlpPathNotifier = ValueNotifier('');
 final ValueNotifier<String> ffmpegPathNotifier = ValueNotifier('');
+final ValueNotifier<String> ytdlpVersionNotifier = ValueNotifier('');
+final ValueNotifier<String> ffmpegVersionNotifier = ValueNotifier('');
 
 class PrefService {
   static late SharedPreferences _prefs;
@@ -38,6 +40,16 @@ class PrefService {
     ffmpegPathNotifier.value = _prefs.getString('ffmpegPath') ?? '';
     ffmpegPathNotifier.addListener(() {
       _prefs.setString('ffmpegPath', ffmpegPathNotifier.value);
+    });
+
+    ytdlpVersionNotifier.value = _prefs.getString('ytdlpVersion') ?? '';
+    ytdlpVersionNotifier.addListener(() {
+      _prefs.setString('ytdlpVersion', ytdlpVersionNotifier.value);
+    });
+
+    ffmpegVersionNotifier.value = _prefs.getString('ffmpegVersion') ?? '';
+    ffmpegVersionNotifier.addListener(() {
+      _prefs.setString('ffmpegVersion', ffmpegVersionNotifier.value);
     });
   }
 }
