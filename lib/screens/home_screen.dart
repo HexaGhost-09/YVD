@@ -135,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
+        bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           shrinkWrap: true,
@@ -177,6 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Positioned.fill(child: Container(color: scheme.surface)),
           SafeArea(
+            bottom: false,
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               children: [
