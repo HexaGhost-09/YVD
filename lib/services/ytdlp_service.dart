@@ -39,7 +39,7 @@ class YtdlpService {
       
       // Filter for unique resolutions
       final qualities = manifest.muxed
-          .map((s) => s.videoQuality.label)
+          .map((s) => s.videoQuality.toString())
           .toSet()
           .map((q) {
             if (q.contains('360')) return VideoQuality.p360;
