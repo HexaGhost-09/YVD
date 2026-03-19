@@ -5,7 +5,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 import 'package:shimmer/shimmer.dart';
 import '../widgets/primary_button.dart';
-import '../widgets/option_card.dart';
 import '../services/ytdlp_service.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:gal/gal.dart';
@@ -142,19 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
                         ],
                       ),
-                      Row(
-                        children: [
-                          _buildHeaderButton(
-                            isDark ? LucideIcons.sun : LucideIcons.moon, 
-                            isDark,
-                            onPressed: () {
-                              YVDApp.themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
-                            },
-                          ),
-                          const SizedBox(width: 12),
-                          _buildHeaderButton(LucideIcons.history, isDark, onPressed: () {}),
-                        ],
-                      ),
+                      _buildHeaderButton(LucideIcons.history, isDark, onPressed: () {}),
                     ],
                   ),
                   
@@ -207,65 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (_metadata != null)
                     _buildPreviewCard(),
                   
-                  const SizedBox(height: 40),
+                    _buildPreviewCard(),
                   
-                  // Section Title
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Fast Options',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      Text(
-                        'All Settings',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.3),
-                        ),
-                      ),
-                    ],
-                  ).animate().fadeIn(delay: 600.ms),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Grid of options or Shimmer
-                  _buildOptionGrid(),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Info Box
-                  GlassContainer(
-                    width: double.infinity,
-                    blur: 10,
-                    opacity: isDark ? 0.2 : 0.4,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: isDark ? Colors.white10 : Colors.white),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          const Icon(LucideIcons.info, color: Color(0xFFFF0000), size: 20),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'Support for 1000+ platforms including YouTube, Instagram, and TikTok.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: (isDark ? Colors.white : const Color(0xFF1A1A1A)).withOpacity(0.7),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate().fadeIn(delay: 1000.ms),
-                  
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 100), // Reserve some space
                 ],
               ),
             ),
@@ -275,59 +206,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildOptionGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: const [
-        OptionCard(
-          title: 'Video Only',
-          icon: LucideIcons.video,
-          color: Color(0xFFFF0000),
-        ),
-        OptionCard(
-          title: 'Audio (MP3)',
-          icon: LucideIcons.music,
-          color: Colors.orange,
-        ),
-        OptionCard(
-          title: 'Shorts',
-          icon: LucideIcons.zap,
-          color: Colors.amber,
-        ),
-        OptionCard(
-          title: 'Playlist',
-          icon: LucideIcons.listVideo,
-          color: Colors.blue,
-        ),
-      ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1);
-  }
-
-  Widget _buildShimmerGrid() {
-    return Shimmer.fromColors(
-      baseColor: Colors.white.withOpacity(0.05),
-      highlightColor: Colors.white.withOpacity(0.1),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.5,
-        children: List.generate(4, (index) => GlassContainer(
-          blur: 0,
-          opacity: 1,
-          borderRadius: BorderRadius.circular(24),
-          child: Container(),
-        )),
-      ),
-    );
-  }
 
   Widget _buildPreviewCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;

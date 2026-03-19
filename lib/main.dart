@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/home_screen.dart';
+import 'screens/navigation_screen.dart';
 
 void main() {
   runApp(const YVDApp());
@@ -46,7 +46,7 @@ class YVDApp extends StatelessWidget {
               surface: const Color(0xFF1A1A1A),
             ),
           ),
-          home: const HomeScreen(),
+          home: const NavigationScreen(),
         );
       },
     );
