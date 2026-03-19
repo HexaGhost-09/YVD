@@ -37,21 +37,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background Glows
-          const GlowBackground(
-            top: -100,
-            right: -100,
-            color: Color(0xFFFF0000),
-            opacity: 0.15,
-          ),
-          const GlowBackground(
-            bottom: -50,
-            left: -50,
-            color: Color(0xFF2196F3),
-            opacity: 0.1,
+          // 3D Smooth White Gradient Background
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(-0.5, -0.6),
+                radius: 1.5,
+                colors: [
+                  Colors.white,
+                  Color(0xFFF8F9FA),
+                  Color(0xFFE9ECEF),
+                ],
+                stops: [0.0, 0.4, 1.0],
+              ),
+            ),
           ),
           
           SafeArea(
@@ -66,15 +68,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'YVD',
-                        style: GoogleFonts.outfit(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1.5,
-                          color: Colors.white,
-                        ),
-                      ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2),
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/images/logo.png',
+                            height: 48,
+                            width: 48,
+                          ).animate().scale(duration: 600.ms, curve: Curves.outBack),
+                          const SizedBox(width: 12),
+                          Text(
+                            'YVD',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.0,
+                              color: const Color(0xFF1A1A1A),
+                            ),
+                          ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+                        ],
+                      ),
                       _buildHeaderButton(LucideIcons.history),
                     ],
                   ),
@@ -84,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Your personal video companion.',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.white.withOpacity(0.5),
+                      color: const Color(0xFF1A1A1A).withOpacity(0.5),
                       fontWeight: FontWeight.w400,
                     ),
                   ).animate().fadeIn(delay: 200.ms, duration: 600.ms).slideY(begin: 0.2),
@@ -94,29 +106,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   // URL Input Card
                   GlassContainer(
                     blur: 20,
-                    opacity: 0.05,
+                    opacity: 0.4,
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: _urlController,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
-                          decoration: InputDecoration(
-                            hintText: 'Paste video link here...',
-                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
-                            border: InputBorder.none,
-                            icon: const Icon(LucideIcons.link, color: Color(0xFFFF0000)),
+                    border: Border.all(color: Colors.white),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _urlController,
+                            style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 16),
+                            decoration: InputDecoration(
+                              hintText: 'Paste video link here...',
+                              hintStyle: TextStyle(color: const Color(0xFF1A1A1A).withOpacity(0.3)),
+                              border: InputBorder.none,
+                              icon: const Icon(LucideIcons.link, color: Color(0xFFFF0000)),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        PrimaryButton(
-                          label: 'ANALYZE URL',
-                          isLoading: _isAnalyzing,
-                          onPressed: _analyzeUrl,
-                        ),
-                      ],
+                          const SizedBox(height: 20),
+                          PrimaryButton(
+                            label: 'ANALYZE URL',
+                            isLoading: _isAnalyzing,
+                            onPressed: _analyzeUrl,
+                          ),
+                        ],
+                      ),
                     ),
                   ).animate().fadeIn(delay: 400.ms, duration: 600.ms).scale(begin: const Offset(0.9, 0.9)),
                   
@@ -131,14 +145,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Color(0xFF1A1A1A),
                         ),
                       ),
                       Text(
                         'All Settings',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.3),
+                          color: const Color(0xFF1A1A1A).withOpacity(0.3),
                         ),
                       ),
                     ],
@@ -154,25 +168,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Info Box
                   GlassContainer(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
                     blur: 10,
-                    opacity: 0.03,
+                    opacity: 0.4,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.info, color: Color(0xFFFF0000), size: 20),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Support for 1000+ platforms including YouTube, Instagram, and TikTok.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.7),
+                    border: Border.all(color: Colors.white),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.info, color: Color(0xFFFF0000), size: 20),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              'Support for 1000+ platforms including YouTube, Instagram, and TikTok.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: const Color(0xFF1A1A1A).withOpacity(0.7),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ).animate().fadeIn(delay: 1000.ms),
                   
@@ -242,12 +258,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeaderButton(IconData icon) {
     return GlassContainer(
-      padding: const EdgeInsets.all(12),
       blur: 10,
-      opacity: 0.05,
+      opacity: 0.4,
       shape: BoxShape.circle,
-      border: Border.all(color: Colors.white.withOpacity(0.1)),
-      child: Icon(icon, color: Colors.white, size: 20),
+      border: Border.all(color: Colors.white),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Icon(icon, color: const Color(0xFF1A1A1A).withOpacity(0.8), size: 20),
+      ),
     );
   }
 }

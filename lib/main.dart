@@ -15,14 +15,16 @@ class YVDApp extends StatelessWidget {
       title: 'YVD',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
         primaryColor: const Color(0xFFFF0000), // YouTube Red
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.white,
         fontFamily: GoogleFonts.inter().fontFamily,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFFFF0000),
-          brightness: Brightness.dark,
+          brightness: Brightness.light,
           secondary: const Color(0xFF2196F3), // Blue
+          surface: Colors.white,
         ),
       ),
       home: const HomeScreen(),

@@ -16,17 +16,17 @@ class OptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassContainer(
-      blur: 15,
-      opacity: 0.05,
+      blur: 20,
+      opacity: 0.4,
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: Colors.white.withOpacity(0.1)),
+      border: Border.all(color: Colors.white),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 28),
@@ -37,7 +37,7 @@ class OptionCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: Color(0xFF1A1A1A),
               letterSpacing: 0.5,
             ),
           ),
