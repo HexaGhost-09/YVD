@@ -1,14 +1,15 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../globals.dart';
 import '../services/tool_update_service.dart';
 import '../services/update_service.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,7 +20,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final ToolUpdateService _toolUpdateService = ToolUpdateService();
-  String _version = '1.1.4';
+  String _version = '1.2.0';
 
   @override
   void initState() {
@@ -32,48 +33,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() => _version = info.version);
   }
 
-  void _showTextDialog({
-    required String title,
-    required String hint,
-    required ValueNotifier<String> notifier,
-  }) {
-    final controller = TextEditingController(text: notifier.value);
+  Future<void> _pickCustomFolder() async {
+    final path = await FilePicker.platform.getDirectoryPath();
+    if (path != null) {
+      customPathNotifier.value = path;
+    }
+  }
+
+  void _showBinaryUpdateDialog(ManagedBinary binary) async {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              notifier.value = controller.text.trim();
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (context) => BinaryUpdateDialog(binary: binary, service: _toolUpdateService),
     );
   }
 
   Future<void> _manualUpdateCheck() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checking for updates...')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checking for updates...')));
     final update = await UpdateService().checkForUpdate();
     if (!mounted) return;
     if (update == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You are on the latest version.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You are on the latest version.')));
       return;
     }
     showDialog(
@@ -97,8 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final supportsDesktopBinaries =
-        !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -109,11 +88,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text('Settings', style: textTheme.displaySmall),
             const SizedBox(height: 8),
-            Text(
-              'Customize your experience and manage binaries.',
-              style: textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
-            ),
+            Text('Version $_version', style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(height: 32),
+            
             _sectionHeader(context, 'Appearance', LucideIcons.palette),
             const SizedBox(height: 16),
             ValueListenableBuilder(
@@ -122,87 +99,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: SwitchListTile(
                   secondary: Icon(LucideIcons.moon),
                   title: const Text('Dark mode'),
-                  subtitle: const Text('Switch between light and dark themes'),
                   value: theme == ThemeMode.dark,
-                  onChanged: (value) {
-                    themeNotifier.value = value ? ThemeMode.dark : ThemeMode.light;
-                  },
+                  onChanged: (v) => themeNotifier.value = v ? ThemeMode.dark : ThemeMode.light,
                 ),
               ),
             ),
+            
             const SizedBox(height: 32),
-            _sectionHeader(context, 'Downloads', LucideIcons.downloadCloud),
+            _sectionHeader(context, 'Storage', LucideIcons.folder),
             const SizedBox(height: 16),
             ValueListenableBuilder(
-              valueListenable: albumNotifier,
-              builder: (context, album, _) => _settingsCard(
+              valueListenable: customPathNotifier,
+              builder: (context, path, _) => _settingsCard(
                 child: ListTile(
-                  leading: Icon(LucideIcons.folder),
-                  title: const Text('Storage Path'),
-                  subtitle: Text('/Gallery/$album'),
-                  trailing: Icon(LucideIcons.chevronRight, size: 18),
-                  onTap: () => _showTextDialog(
-                    title: 'Download Folder',
-                    hint: 'e.g. YVD Downloads',
-                    notifier: albumNotifier,
-                  ),
+                  leading: Icon(LucideIcons.hardDrive),
+                  title: const Text('Custom Output Folder'),
+                  subtitle: Text(path.isEmpty ? (Platform.isWindows ? 'Downloads' : 'Home') : path),
+                  trailing: Icon(LucideIcons.edit),
+                  onTap: _pickCustomFolder,
                 ),
               ),
             ),
-            if (supportsDesktopBinaries) ...[
+            if (Platform.isAndroid) ...[
               const SizedBox(height: 12),
               ValueListenableBuilder(
-                valueListenable: ytdlpPathNotifier,
-                builder: (context, path, _) => _settingsCard(
+                valueListenable: albumNotifier,
+                builder: (context, album, _) => _settingsCard(
                   child: ListTile(
-                    leading: Icon(LucideIcons.terminal),
-                    title: const Text('yt-dlp Binary'),
-                    subtitle: Text(path.isEmpty ? 'Use internal' : path),
-                    trailing: Icon(LucideIcons.edit3, size: 18),
-                    onTap: () => _showTextDialog(
-                      title: 'yt-dlp Path',
-                      hint: r'C:\Tools\yt-dlp.exe',
-                      notifier: ytdlpPathNotifier,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ValueListenableBuilder(
-                valueListenable: ffmpegPathNotifier,
-                builder: (context, path, _) => _settingsCard(
-                  child: ListTile(
-                    leading: Icon(LucideIcons.video),
-                    title: const Text('FFmpeg Binary'),
-                    subtitle: Text(path.isEmpty ? 'Optional' : path),
-                    trailing: Icon(LucideIcons.edit3, size: 18),
-                    onTap: () => _showTextDialog(
-                      title: 'FFmpeg Path',
-                      hint: r'C:\Tools\ffmpeg.exe',
-                      notifier: ffmpegPathNotifier,
-                    ),
+                    leading: Icon(LucideIcons.image),
+                    title: const Text('Gallery Album Name'),
+                    subtitle: Text(album),
+                    trailing: Icon(LucideIcons.edit),
+                    onTap: () => _showTextDialog('Album Name', 'e.g. YVD', albumNotifier),
                   ),
                 ),
               ),
             ],
+
+            if (isDesktop) ...[
+              const SizedBox(height: 32),
+              _sectionHeader(context, 'Core Binaries', LucideIcons.terminal),
+              const SizedBox(height: 16),
+              _binaryTile(context, ManagedBinary.ytDlp, LucideIcons.zap),
+              const SizedBox(height: 12),
+              _binaryTile(context, ManagedBinary.ffmpeg, LucideIcons.video),
+              const SizedBox(height: 12),
+              _binaryTile(context, ManagedBinary.aria2c, LucideIcons.download),
+            ],
+
             const SizedBox(height: 32),
             _sectionHeader(context, 'About', LucideIcons.info),
             const SizedBox(height: 16),
             _settingsCard(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(LucideIcons.fingerprint),
-                    title: const Text('Software Version'),
-                    subtitle: Text('v$_version'),
-                  ),
-                  const Divider(indent: 70, endIndent: 20, height: 1),
-                  ListTile(
-                    leading: Icon(LucideIcons.refreshCw),
-                    title: const Text('Check for Updates'),
-                    onTap: _manualUpdateCheck,
-                  ),
-                ],
+              child: ListTile(
+                leading: Icon(LucideIcons.refreshCw),
+                title: const Text('Check for App Updates'),
+                onTap: _manualUpdateCheck,
               ),
             ),
             const SizedBox(height: 40),
@@ -212,26 +164,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String label, IconData icon) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(width: 12),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-            fontSize: 13,
-            color: scheme.primary,
+  Widget _binaryTile(BuildContext context, ManagedBinary binary, IconData icon) {
+    final notifier = binary == ManagedBinary.ytDlp ? ytdlpPathNotifier : 
+                     binary == ManagedBinary.ffmpeg ? ffmpegPathNotifier : aria2cPathNotifier;
+    final version = binary == ManagedBinary.ytDlp ? ytdlpVersionNotifier : 
+                    binary == ManagedBinary.ffmpeg ? ffmpegVersionNotifier : aria2cVersionNotifier;
+    
+    final label = binary == ManagedBinary.ytDlp ? 'yt-dlp' : 
+                  binary == ManagedBinary.ffmpeg ? 'FFmpeg' : 'aria2c';
+
+    return ValueListenableBuilder(
+      valueListenable: notifier,
+      builder: (context, path, _) => ValueListenableBuilder(
+        valueListenable: version,
+        builder: (context, ver, _) => _settingsCard(
+          child: ListTile(
+            leading: Icon(icon),
+            title: Text(label),
+            subtitle: Text(path.isEmpty ? 'Not found' : (ver.isEmpty ? 'Installed' : ver)),
+            trailing: FilledButton.tonal(
+              onPressed: () => _showBinaryUpdateDialog(binary),
+              child: Text(path.isEmpty ? 'Install' : 'Update'),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(BuildContext context, String label, IconData icon) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 12),
+        Text(label.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.2, color: color)),
       ],
     );
   }
 
-  Widget _settingsCard({required Widget child}) {
-    return Card(clipBehavior: Clip.antiAlias, child: child);
+  Widget _settingsCard({required Widget child}) => Card(clipBehavior: Clip.antiAlias, child: child);
+
+  void _showTextDialog(String title, String hint, ValueNotifier<String> notifier) {
+    final controller = TextEditingController(text: notifier.value);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: controller, decoration: InputDecoration(hintText: hint)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () { notifier.value = controller.text.trim(); Navigator.pop(context); }, child: const Text('Save')),
+        ],
+      ),
+    );
+  }
+}
+
+class BinaryUpdateDialog extends StatefulWidget {
+  final ManagedBinary binary;
+  final ToolUpdateService service;
+  const BinaryUpdateDialog({super.key, required this.binary, required this.service});
+
+  @override
+  State<BinaryUpdateDialog> createState() => _BinaryUpdateDialogState();
+}
+
+class _BinaryUpdateDialogState extends State<BinaryUpdateDialog> {
+  BinaryUpdateInfo? _info;
+  bool _isLoading = true;
+  bool _isInstalling = false;
+  double _progress = 0;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final info = await widget.service.checkUpdate(widget.binary);
+      setState(() { _info = info; _isLoading = false; });
+    } catch (e) {
+      setState(() { _error = e.toString(); _isLoading = false; });
+    }
+  }
+
+  Future<void> _install() async {
+    setState(() { _isInstalling = true; _progress = 0; });
+    try {
+      await widget.service.updateBinary(widget.binary, onProgress: (p) => setState(() => _progress = p));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() { _error = e.toString(); _isInstalling = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) return const AlertDialog(content: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Checking for updates...')]));
+    if (_error != null) return AlertDialog(title: const Text('Error'), content: Text(_error!), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))]);
+
+    final info = _info!;
+    return AlertDialog(
+      title: Text('Update ${info.binary == ManagedBinary.ytDlp ? 'yt-dlp' : info.binary == ManagedBinary.ffmpeg ? 'FFmpeg' : 'aria2c'}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Current: ${info.currentVersion}'),
+          Text('Latest: ${info.latestVersion}'),
+          if (_isInstalling) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(value: _progress),
+            const SizedBox(height: 8),
+            Text('Downloading... ${(_progress * 100).toInt()}%'),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: _isInstalling ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: _isInstalling || (!info.updateAvailable && info.isInstalled) ? null : _install, child: const Text('Install Now')),
+      ],
+    );
   }
 }

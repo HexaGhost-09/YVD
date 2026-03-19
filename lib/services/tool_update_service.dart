@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../globals.dart';
 
-enum ManagedBinary { ytDlp, ffmpeg }
+enum ManagedBinary { ytDlp, ffmpeg, aria2c }
 
 class BinaryUpdateInfo {
   final ManagedBinary binary;
@@ -46,21 +46,14 @@ class ToolUpdateService {
 
   final Dio _dio;
 
-  static const _ytDlpLatestRelease =
-      'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest';
-  static const _ytDlpLatestWindows =
-      'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
-  static const _ytDlpLatestLinux =
-      'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-  static const _ytDlpLatestMac =
-      'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos';
-  static const _ffmpegLatestRelease =
-      'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest';
+  static const _ytDlpLatestRelease = 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest';
+  static const _ytDlpLatestWindows = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
+  static const _ytDlpLatestLinux = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+  static const _ytDlpLatestMac = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos';
+  static const _ffmpegLatestRelease = 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest';
+  static const _aria2cLatestRelease = 'https://api.github.com/repos/aria2/aria2/releases/latest';
 
-  bool get _isDesktop =>
-      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-
-  bool get _supportsFfmpegUpdate => !kIsWeb && Platform.isWindows;
+  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
   Future<BinaryUpdateInfo> checkUpdate(ManagedBinary binary) async {
     if (!_isDesktop) {
@@ -82,6 +75,8 @@ class ToolUpdateService {
         return _checkYtDlp();
       case ManagedBinary.ffmpeg:
         return _checkFfmpeg();
+      case ManagedBinary.aria2c:
+        return _checkAria2c();
     }
   }
 
@@ -98,77 +93,92 @@ class ToolUpdateService {
         return _installYtDlp(onProgress: onProgress);
       case ManagedBinary.ffmpeg:
         return _installFfmpegWindows(onProgress: onProgress);
+      case ManagedBinary.aria2c:
+        return _installAria2cWindows(onProgress: onProgress);
     }
   }
 
   Future<BinaryUpdateInfo> _checkYtDlp() async {
-    final latest = await _fetchReleaseJson(_ytDlpLatestRelease);
-    final latestTag = _normalizeVersion(latest['tag_name']?.toString() ?? '');
-    final latestNotes = latest['body']?.toString() ?? '';
-    final currentPath = ytdlpPathNotifier.value.trim();
-    final currentVersion = await _readExecutableVersion(currentPath, [
-      '--version',
-    ]);
-    final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
-    final updateAvailable =
-        installed &&
-        currentVersion.isNotEmpty &&
-        _isNewer(latestTag, currentVersion);
+    try {
+      final latest = await _fetchReleaseJson(_ytDlpLatestRelease);
+      final latestTag = _normalizeVersion(latest['tag_name']?.toString() ?? '');
+      final latestNotes = latest['body']?.toString() ?? '';
+      final currentPath = ytdlpPathNotifier.value.trim();
+      final currentVersion = await _readExecutableVersion(currentPath, ['--version']);
+      final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
+      final updateAvailable = !installed || (currentVersion.isNotEmpty && _isNewer(latestTag, currentVersion));
 
-    return BinaryUpdateInfo(
-      binary: ManagedBinary.ytDlp,
-      isSupported: true,
-      isInstalled: installed,
-      updateAvailable: updateAvailable || !installed,
-      currentVersion: installed ? currentVersion : 'Not installed',
-      latestVersion: latestTag,
-      installedPath: currentPath,
-      releaseUrl: latest['html_url']?.toString() ?? '',
-      releaseNotes: latestNotes,
-    );
+      return BinaryUpdateInfo(
+        binary: ManagedBinary.ytDlp,
+        isSupported: true,
+        isInstalled: installed,
+        updateAvailable: updateAvailable,
+        currentVersion: installed ? currentVersion : 'Not installed',
+        latestVersion: latestTag,
+        installedPath: currentPath,
+        releaseUrl: latest['html_url']?.toString() ?? '',
+        releaseNotes: latestNotes,
+      );
+    } catch (e) {
+      return _errorInfo(ManagedBinary.ytDlp, e.toString());
+    }
   }
 
   Future<BinaryUpdateInfo> _checkFfmpeg() async {
-    final latest = await _fetchReleaseJson(_ffmpegLatestRelease);
-    final latestVersion = latest['name']?.toString().trim().isNotEmpty == true
-        ? latest['name'].toString()
-        : latest['tag_name']?.toString() ?? 'Latest';
-    final latestPublishedAt = latest['published_at']?.toString() ?? '';
-    final currentPath = ffmpegPathNotifier.value.trim();
-    final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
-    final storedVersion = ffmpegVersionNotifier.value.trim();
-    final detectedVersion = await _readExecutableVersion(currentPath, [
-      '-version',
-    ]);
-    final currentVersion = storedVersion.isNotEmpty
-        ? storedVersion
-        : detectedVersion;
-    final updateAvailable = installed
-        ? currentVersion.isEmpty || currentVersion != latestPublishedAt
-        : true;
+    try {
+      final latest = await _fetchReleaseJson(_ffmpegLatestRelease);
+      final latestPublishedAt = latest['published_at']?.toString() ?? '';
+      final currentPath = ffmpegPathNotifier.value.trim();
+      final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
+      final currentVersion = ffmpegVersionNotifier.value.trim();
+      final updateAvailable = !installed || (currentVersion != latestPublishedAt);
 
-    return BinaryUpdateInfo(
-      binary: ManagedBinary.ffmpeg,
-      isSupported: _supportsFfmpegUpdate,
-      isInstalled: installed,
-      updateAvailable: updateAvailable,
-      currentVersion: currentVersion.isEmpty ? 'Unknown' : currentVersion,
-      latestVersion: latestPublishedAt.isEmpty
-          ? latestVersion
-          : latestPublishedAt,
-      installedPath: currentPath,
-      releaseUrl: latest['html_url']?.toString() ?? '',
-      releaseNotes: latest['body']?.toString() ?? '',
-    );
+      return BinaryUpdateInfo(
+        binary: ManagedBinary.ffmpeg,
+        isSupported: Platform.isWindows,
+        isInstalled: installed,
+        updateAvailable: updateAvailable,
+        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not installed',
+        latestVersion: latestPublishedAt,
+        installedPath: currentPath,
+        releaseUrl: latest['html_url']?.toString() ?? '',
+        releaseNotes: latest['body']?.toString() ?? '',
+      );
+    } catch (e) {
+      return _errorInfo(ManagedBinary.ffmpeg, e.toString());
+    }
   }
 
-  Future<BinaryInstallResult> _installYtDlp({
-    void Function(double progress)? onProgress,
-  }) async {
+  Future<BinaryUpdateInfo> _checkAria2c() async {
+    try {
+      final latest = await _fetchReleaseJson(_aria2cLatestRelease);
+      final latestTag = _normalizeVersion(latest['tag_name']?.toString() ?? '');
+      final currentPath = aria2cPathNotifier.value.trim();
+      final installed = currentPath.isNotEmpty && File(currentPath).existsSync();
+      final currentVersion = aria2cVersionNotifier.value.trim();
+      final updateAvailable = !installed || (currentVersion != latestTag);
+
+      return BinaryUpdateInfo(
+        binary: ManagedBinary.aria2c,
+        isSupported: Platform.isWindows,
+        isInstalled: installed,
+        updateAvailable: updateAvailable,
+        currentVersion: installed ? (currentVersion.isEmpty ? 'Installed' : currentVersion) : 'Not installed',
+        latestVersion: latestTag,
+        installedPath: currentPath,
+        releaseUrl: latest['html_url']?.toString() ?? '',
+        releaseNotes: latest['body']?.toString() ?? '',
+      );
+    } catch (e) {
+      return _errorInfo(ManagedBinary.aria2c, e.toString());
+    }
+  }
+
+  Future<BinaryInstallResult> _installYtDlp({void Function(double progress)? onProgress}) async {
     final latest = await _fetchReleaseJson(_ytDlpLatestRelease);
     final version = _normalizeVersion(latest['tag_name']?.toString() ?? '');
     final downloadUrl = _ytDlpDownloadUrl();
-    final targetPath = await _resolveYtDlpInstallPath(downloadUrl);
+    final targetPath = await _resolveBinaryInstallPath('yt-dlp', downloadUrl.endsWith('.exe') ? 'yt-dlp.exe' : 'yt-dlp');
     await _downloadToFile(downloadUrl, targetPath, onProgress: onProgress);
     await _makeExecutableIfNeeded(targetPath);
 
@@ -177,81 +187,78 @@ class ToolUpdateService {
     return BinaryInstallResult(path: targetPath, version: version);
   }
 
-  Future<BinaryInstallResult> _installFfmpegWindows({
-    void Function(double progress)? onProgress,
-  }) async {
-    if (!_supportsFfmpegUpdate) {
-      throw UnsupportedError(
-        'FFmpeg updater is currently supported on Windows only.',
-      );
-    }
-
+  Future<BinaryInstallResult> _installFfmpegWindows({void Function(double progress)? onProgress}) async {
     final latest = await _fetchReleaseJson(_ffmpegLatestRelease);
-    final releaseVersion =
-        latest['published_at']?.toString() ??
-        latest['name']?.toString() ??
-        'Latest';
-    final asset = _selectFfmpegAsset(
-      latest['assets'] as List<dynamic>? ?? const [],
+    final version = latest['published_at']?.toString() ?? 'Latest';
+    final asset = _selectAsset(latest['assets'] as List<dynamic>, (name) => name.contains('win64') && name.endsWith('.zip'));
+    final downloadUrl = asset['browser_download_url'].toString();
+    
+    final exePath = await _installFromZip(
+      'ffmpeg',
+      downloadUrl,
+      'ffmpeg.exe',
+      onProgress: onProgress,
     );
-    final downloadUrl = asset['browser_download_url']?.toString();
-    if (downloadUrl == null || downloadUrl.isEmpty) {
-      throw StateError('FFmpeg release asset not found.');
-    }
 
-    final installRoot = await _resolveFfmpegInstallRoot();
-    if (await installRoot.exists()) {
-      await installRoot.delete(recursive: true);
-    }
-    await installRoot.create(recursive: true);
+    ffmpegPathNotifier.value = exePath;
+    ffmpegVersionNotifier.value = version;
+    return BinaryInstallResult(path: exePath, version: version);
+  }
 
-    final zipPath = '${installRoot.path}${Platform.pathSeparator}ffmpeg.zip';
-    await _downloadToFile(downloadUrl, zipPath, onProgress: onProgress);
+  Future<BinaryInstallResult> _installAria2cWindows({void Function(double progress)? onProgress}) async {
+    final latest = await _fetchReleaseJson(_aria2cLatestRelease);
+    final version = _normalizeVersion(latest['tag_name']?.toString() ?? '');
+    final asset = _selectAsset(latest['assets'] as List<dynamic>, (name) => name.contains('win-64bit') && name.endsWith('.zip'));
+    final downloadUrl = asset['browser_download_url'].toString();
 
-    final extractDir = Directory(
-      '${installRoot.path}${Platform.pathSeparator}extract',
+    final exePath = await _installFromZip(
+      'aria2c',
+      downloadUrl,
+      'aria2c.exe',
+      onProgress: onProgress,
     );
-    await extractDir.create(recursive: true);
+
+    aria2cPathNotifier.value = exePath;
+    aria2cVersionNotifier.value = version;
+    return BinaryInstallResult(path: exePath, version: version);
+  }
+
+  Future<String> _installFromZip(String name, String url, String exeName, {void Function(double progress)? onProgress}) async {
+    final supportDir = await getApplicationSupportDirectory();
+    final installDir = Directory('${supportDir.path}${Platform.pathSeparator}binaries${Platform.pathSeparator}$name');
+    if (await installDir.exists()) await installDir.delete(recursive: true);
+    await installDir.create(recursive: true);
+
+    final zipPath = '${installDir.path}${Platform.pathSeparator}$name.zip';
+    await _downloadToFile(url, zipPath, onProgress: onProgress);
+
     final bytes = await File(zipPath).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
-    extractArchiveToDisk(archive, extractDir.path);
+    extractArchiveToDisk(archive, installDir.path);
 
-    final binDir = await _locateFfmpegBinDirectory(extractDir);
-    if (binDir == null) {
-      throw StateError(
-        'Could not find FFmpeg binaries in the downloaded archive.',
-      );
+    File? foundExe;
+    await for (final entity in installDir.list(recursive: true)) {
+      if (entity is File && entity.path.toLowerCase().endsWith(exeName.toLowerCase())) {
+        foundExe = entity;
+        break;
+      }
     }
 
-    final finalBinDir = Directory(
-      '${installRoot.path}${Platform.pathSeparator}bin',
-    );
-    await _copyDirectory(Directory(binDir), finalBinDir);
-
-    final ffmpegExe = File(
-      '${finalBinDir.path}${Platform.pathSeparator}ffmpeg.exe',
-    );
-    if (!await ffmpegExe.exists()) {
-      throw StateError('FFmpeg executable was not installed correctly.');
-    }
-
-    ffmpegPathNotifier.value = ffmpegExe.path;
-    ffmpegVersionNotifier.value = releaseVersion;
-    try {
-      await File(zipPath).delete();
-    } catch (_) {}
-    try {
-      await extractDir.delete(recursive: true);
-    } catch (_) {}
-
-    return BinaryInstallResult(path: ffmpegExe.path, version: releaseVersion);
+    if (foundExe == null) throw StateError('Could not find $exeName in archive.');
+    
+    // Move to fixed location
+    final finalPath = '${installDir.path}${Platform.pathSeparator}$exeName';
+    await foundExe.copy(finalPath);
+    
+    // Cleanup
+    try { await File(zipPath).delete(); } catch (_) {}
+    
+    return finalPath;
   }
 
   Future<Map<String, dynamic>> _fetchReleaseJson(String url) async {
     final response = await _dio.get<String>(url);
-    if (response.statusCode != 200 || response.data == null) {
-      throw StateError('Failed to fetch release metadata.');
-    }
+    if (response.statusCode != 200 || response.data == null) throw StateError('Failed to fetch release metadata.');
     return jsonDecode(response.data!) as Map<String, dynamic>;
   }
 
@@ -261,75 +268,33 @@ class ToolUpdateService {
     return _ytDlpLatestMac;
   }
 
-  Future<String> _resolveYtDlpInstallPath(String downloadUrl) async {
+  Future<String> _resolveBinaryInstallPath(String folder, String fileName) async {
     final supportDir = await getApplicationSupportDirectory();
-    final binDir = Directory(
-      '${supportDir.path}${Platform.pathSeparator}binaries${Platform.pathSeparator}yt-dlp',
-    );
-    await binDir.create(recursive: true);
-
-    final fileName = downloadUrl.endsWith('.exe') ? 'yt-dlp.exe' : 'yt-dlp';
-    return '${binDir.path}${Platform.pathSeparator}$fileName';
+    final dir = Directory('${supportDir.path}${Platform.pathSeparator}binaries${Platform.pathSeparator}$folder');
+    await dir.create(recursive: true);
+    return '${dir.path}${Platform.pathSeparator}$fileName';
   }
 
-  Future<Directory> _resolveFfmpegInstallRoot() async {
-    final supportDir = await getApplicationSupportDirectory();
-    final root = Directory(
-      '${supportDir.path}${Platform.pathSeparator}binaries${Platform.pathSeparator}ffmpeg',
-    );
-    return root;
-  }
-
-  Future<String?> _locateFfmpegBinDirectory(Directory root) async {
-    await for (final entity in root.list(recursive: true)) {
-      if (entity is File &&
-          entity.path.toLowerCase().endsWith(
-            '${Platform.pathSeparator}ffmpeg.exe',
-          )) {
-        return File(entity.path).parent.path;
-      }
-    }
-    return null;
-  }
-
-  Map<String, dynamic> _selectFfmpegAsset(List<dynamic> assets) {
+  Map<String, dynamic> _selectAsset(List<dynamic> assets, bool Function(String name) predicate) {
     for (final asset in assets.whereType<Map<String, dynamic>>()) {
-      final name = asset['name']?.toString().toLowerCase() ?? '';
-      if (name.contains('win64') && name.endsWith('.zip')) {
-        return asset;
-      }
+      if (predicate(asset['name']?.toString().toLowerCase() ?? '')) return asset;
     }
-    throw StateError('No compatible FFmpeg asset found for this platform.');
+    throw StateError('No compatible asset found.');
   }
 
-  Future<void> _downloadToFile(
-    String url,
-    String path, {
-    void Function(double progress)? onProgress,
-  }) async {
-    final response = await _dio.get<ResponseBody>(
-      url,
-      options: Options(responseType: ResponseType.stream),
-    );
-    if (response.statusCode != 200 || response.data == null) {
-      throw StateError('Download failed for $url');
-    }
-
-    final total = response.headers.value(Headers.contentLengthHeader);
-    final length = int.tryParse(total ?? '') ?? -1;
+  Future<void> _downloadToFile(String url, String path, {void Function(double progress)? onProgress}) async {
+    final response = await _dio.get<ResponseBody>(url, options: Options(responseType: ResponseType.stream));
+    final length = int.tryParse(response.headers.value(Headers.contentLengthHeader) ?? '') ?? -1;
     final sink = File(path).openWrite();
     int received = 0;
     try {
       await for (final chunk in response.data!.stream) {
         received += chunk.length;
         sink.add(chunk);
-        if (length > 0) {
-          onProgress?.call(received / length);
-        }
+        if (length > 0) onProgress?.call(received / length);
       }
     } finally {
-      await sink.flush();
-      await sink.close();
+      await sink.flush(); await sink.close();
     }
   }
 
@@ -337,61 +302,29 @@ class ToolUpdateService {
     if (path.isEmpty || !File(path).existsSync()) return '';
     try {
       final result = await Process.run(path, args);
-      if (result.exitCode != 0) return '';
       return result.stdout.toString().trim().split('\n').first.trim();
-    } catch (_) {
-      return '';
-    }
+    } catch (_) { return ''; }
   }
 
   Future<void> _makeExecutableIfNeeded(String path) async {
-    if (Platform.isWindows) return;
-    try {
-      await Process.run('chmod', ['755', path]);
-    } catch (_) {}
+    if (!Platform.isWindows) try { await Process.run('chmod', ['755', path]); } catch (_) {}
   }
 
-  Future<void> _copyDirectory(Directory source, Directory target) async {
-    await target.create(recursive: true);
-    await for (final entity in source.list(
-      recursive: true,
-      followLinks: false,
-    )) {
-      final relativePath = entity.path.substring(source.path.length);
-      final destinationPath = '${target.path}$relativePath';
-      if (entity is Directory) {
-        await Directory(destinationPath).create(recursive: true);
-      } else if (entity is File) {
-        await File(destinationPath).parent.create(recursive: true);
-        await entity.copy(destinationPath);
-      }
-    }
-  }
+  BinaryUpdateInfo _errorInfo(ManagedBinary binary, String error) => BinaryUpdateInfo(
+    binary: binary, isSupported: true, isInstalled: false, updateAvailable: false,
+    currentVersion: 'Error', latestVersion: 'Unknown', installedPath: '',
+    releaseUrl: '', releaseNotes: error,
+  );
 
-  String _normalizeVersion(String version) => version.trim().startsWith('v')
-      ? version.trim().substring(1)
-      : version.trim();
+  String _normalizeVersion(String version) => version.trim().startsWith('v') ? version.trim().substring(1) : version.trim();
 
   bool _isNewer(String latest, String current) {
-    final latestParts = _splitVersion(latest);
-    final currentParts = _splitVersion(current);
-    final length = latestParts.length > currentParts.length
-        ? latestParts.length
-        : currentParts.length;
-
-    for (var i = 0; i < length; i++) {
-      final latestVal = i < latestParts.length ? latestParts[i] : 0;
-      final currentVal = i < currentParts.length ? currentParts[i] : 0;
-      if (latestVal > currentVal) return true;
-      if (latestVal < currentVal) return false;
+    final l = latest.split('.').map((e) => int.tryParse(e.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+    final c = current.split('.').map((e) => int.tryParse(e.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
+    for (var i = 0; i < l.length && i < c.length; i++) {
+      if (l[i] > c[i]) return true;
+      if (l[i] < c[i]) return false;
     }
-    return false;
-  }
-
-  List<int> _splitVersion(String value) {
-    return value.split('.').map((part) {
-      final digits = part.replaceAll(RegExp(r'\D'), '');
-      return int.tryParse(digits) ?? 0;
-    }).toList();
+    return l.length > c.length;
   }
 }

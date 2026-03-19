@@ -3,10 +3,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 final ValueNotifier<String> albumNotifier = ValueNotifier("YVD");
+final ValueNotifier<String> customPathNotifier = ValueNotifier('');
 final ValueNotifier<String> ytdlpPathNotifier = ValueNotifier('');
 final ValueNotifier<String> ffmpegPathNotifier = ValueNotifier('');
+final ValueNotifier<String> aria2cPathNotifier = ValueNotifier('');
 final ValueNotifier<String> ytdlpVersionNotifier = ValueNotifier('');
 final ValueNotifier<String> ffmpegVersionNotifier = ValueNotifier('');
+final ValueNotifier<String> aria2cVersionNotifier = ValueNotifier('');
 
 class PrefService {
   static late SharedPreferences _prefs;
@@ -14,22 +17,21 @@ class PrefService {
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
 
-    // Load Theme
-    final savedTheme = _prefs.getString('themeMode') ?? 'light';
-    themeNotifier.value = savedTheme == 'dark'
+    themeNotifier.value = (_prefs.getString('themeMode') ?? 'light') == 'dark'
         ? ThemeMode.dark
         : ThemeMode.light;
     themeNotifier.addListener(() {
-      _prefs.setString(
-        'themeMode',
-        themeNotifier.value == ThemeMode.dark ? 'dark' : 'light',
-      );
+      _prefs.setString('themeMode', themeNotifier.value == ThemeMode.dark ? 'dark' : 'light');
     });
 
-    // Load Album/Path
     albumNotifier.value = _prefs.getString('albumName') ?? 'YVD';
     albumNotifier.addListener(() {
       _prefs.setString('albumName', albumNotifier.value);
+    });
+
+    customPathNotifier.value = _prefs.getString('customPath') ?? '';
+    customPathNotifier.addListener(() {
+      _prefs.setString('customPath', customPathNotifier.value);
     });
 
     ytdlpPathNotifier.value = _prefs.getString('ytdlpPath') ?? '';
@@ -42,6 +44,11 @@ class PrefService {
       _prefs.setString('ffmpegPath', ffmpegPathNotifier.value);
     });
 
+    aria2cPathNotifier.value = _prefs.getString('aria2cPath') ?? '';
+    aria2cPathNotifier.addListener(() {
+      _prefs.setString('aria2cPath', aria2cPathNotifier.value);
+    });
+
     ytdlpVersionNotifier.value = _prefs.getString('ytdlpVersion') ?? '';
     ytdlpVersionNotifier.addListener(() {
       _prefs.setString('ytdlpVersion', ytdlpVersionNotifier.value);
@@ -50,6 +57,11 @@ class PrefService {
     ffmpegVersionNotifier.value = _prefs.getString('ffmpegVersion') ?? '';
     ffmpegVersionNotifier.addListener(() {
       _prefs.setString('ffmpegVersion', ffmpegVersionNotifier.value);
+    });
+
+    aria2cVersionNotifier.value = _prefs.getString('aria2cVersion') ?? '';
+    aria2cVersionNotifier.addListener(() {
+      _prefs.setString('aria2cVersion', aria2cVersionNotifier.value);
     });
   }
 }
