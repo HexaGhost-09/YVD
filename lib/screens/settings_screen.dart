@@ -145,13 +145,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _binaryTile(context, ManagedBinary.aria2c, LucideIcons.download),
 
             const SizedBox(height: 32),
-            _sectionHeader(context, 'About', LucideIcons.info),
+            _sectionHeader(context, 'About & Credits', LucideIcons.info),
             const SizedBox(height: 16),
             _settingsCard(
-              child: ListTile(
-                leading: Icon(LucideIcons.refreshCw),
-                title: const Text('Check for App Updates'),
-                onTap: _manualUpdateCheck,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(LucideIcons.github),
+                    title: const Text('GitHub Repository'),
+                    subtitle: const Text('https://github.com/HexaGhost-09/YVD'),
+                    onTap: () => launchUrl(Uri.parse('https://github.com/HexaGhost-09/YVD'), mode: LaunchMode.externalApplication),
+                  ),
+                  const Divider(height: 1, indent: 64),
+                  ListTile(
+                    leading: Icon(LucideIcons.user),
+                    title: const Text('Developer'),
+                    subtitle: const Text('HexaGhost Team'),
+                  ),
+                  const Divider(height: 1, indent: 64),
+                  ListTile(
+                    leading: Icon(LucideIcons.refreshCw),
+                    title: const Text('Check for App Updates'),
+                    onTap: _manualUpdateCheck,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 48),
+            Center(
+              child: Text(
+                'Made with ❤️ for Video Enthusiasts',
+                style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant.withOpacity(0.6)),
               ),
             ),
             const SizedBox(height: 40),
